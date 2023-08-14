@@ -1,0 +1,14 @@
+# https://docs.sqlc.dev/en/stable/reference/config.html
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "db/query"
+    schema: "db/migration"
+    gen:
+      go:
+        package: "sqlc"
+        out: "db/sqlc"
+        emit_json_tags: true
+        emit_prepared_queries: false
+        emit_interface: false
+        emit_exact_table_names: false # accounts table -> type Account struct (singular)
