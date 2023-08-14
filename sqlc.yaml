@@ -11,4 +11,4 @@ sql:
         emit_json_tags: true
         emit_prepared_queries: false
         emit_interface: false
-        emit_exact_table_names: false # accounts table -> Account struct (singular)
+        emit_exact_table_names: false # accounts table -> type Account struct (singular)
