@@ -41,6 +41,44 @@ func TestGetEntry(t *testing.T) {
 	require.WithinDuration(t, entry1.CreatedAt, entry2.CreatedAt, time.Second)
 }
 
+func TestListEntries(t *testing.T) {
+	var expectedEntries []Entry
+	for i := 0; i < 10; i++ {
+		entry := createRandomEntry(t)
+		expectedEntries = append(expectedEntries, entry)
+	}
+
+	query := `
+		SELECT id, account_id, amount, created_at 
+		FROM entries
+		ORDER BY id
+		LIMIT $1
+		OFFSET $2
+	`
+
+	params := ListEntriesParams{
+		Limit:  5,
+		Offset: 5,
+	}
+
+	rows := sqlmock.NewRows([]string{"id", "account_id", "amount", "created_at"})
+	for _, entry := range expectedEntries[5:10] {
+		rows.AddRow(entry.ID, entry.AccountID, entry.Amount, entry.CreatedAt)
+	}
+
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(params.Limit, params.Offset).
+		WillReturnRows(rows)
+
+	entries, err := testQueries.ListEntries(context.Background(), params)
+	require.NoError(t, err)
+	require.Len(t, entries, 5)
+
+	for _, entry := range entries {
+		require.NotEmpty(t, entry)
+	}
+}
+
 func createRandomEntry(t *testing.T) Entry {
 	account := createRandomAccount(t)
 
