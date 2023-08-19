@@ -6,24 +6,24 @@ import (
 	"os"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/lib/pq"
 )
 
-// TODO: Refactor consts into environment variables
-const (
-	dbDriver = "postgres"
-	dbSource = "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable"
-)
-
 var testQueries *Queries
+var mock sqlmock.Sqlmock
 
 func TestMain(m *testing.M) {
-	conn, err := sql.Open(dbDriver, dbSource)
-	if err != nil {
-		log.Fatal("cannot connect to db:", err)
-	}
+	var db *sql.DB
+	var err error
 
-	testQueries = New(conn)
+	db, mock, err = sqlmock.New()
+	if err != nil {
+		log.Fatalf("failed to connect to mock database connect: %v", err)
+	}
+	defer db.Close()
+
+	testQueries = New(db)
 
 	os.Exit(m.Run())
 }
