@@ -17,6 +17,20 @@ func TestCreateAccount(t *testing.T) {
 
 func TestGetAccount(t *testing.T) {
 	account1 := createRandomAccount(t)
+
+	query := `-- name: GetAccount :one
+SELECT id, owner, balance, currency, created_at 
+FROM accounts
+WHERE id = $1 LIMIT 1
+`
+
+	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "current", "created_at"}).
+		AddRow(account1.ID, account1.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
+
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(account1.ID).
+		WillReturnRows(rows)
+
 	account2, err := testQueries.GetAccount(context.Background(), account1.ID)
 
 	require.NoError(t, err)
