@@ -12,6 +12,10 @@ import (
 )
 
 func TestCreateAccount(t *testing.T) {
+	createRandomAccount(t)
+}
+
+func createRandomAccount(t *testing.T) Account {
 	params := CreateAccountParams{
 		Owner:    util.RandomOwner(),
 		Balance:  util.RandomAmount(),
@@ -49,4 +53,6 @@ INSERT INTO accounts (
 
 	err = mock.ExpectationsWereMet()
 	require.NoError(t, err)
+
+	return account
 }
