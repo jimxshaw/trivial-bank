@@ -32,7 +32,6 @@ WHERE id = $1 LIMIT 1
 		WillReturnRows(rows)
 
 	account2, err := testQueries.GetAccount(context.Background(), account1.ID)
-
 	require.NoError(t, err)
 	require.NotEmpty(t, account2)
 
@@ -41,6 +40,40 @@ WHERE id = $1 LIMIT 1
 	require.Equal(t, account1.Balance, account2.Balance)
 	require.Equal(t, account1.Currency, account2.Currency)
 	require.WithinDuration(t, account1.CreatedAt, account2.CreatedAt, time.Second)
+}
+
+func TestUpdateAccount(t *testing.T) {
+	account1 := createRandomAccount(t)
+
+	query := `-- name: UpdateAccount :one
+UPDATE accounts
+SET balance = $2
+WHERE id = $1
+RETURNING id, owner, balance, currency, created_at
+`
+
+	params := UpdateAccountParams{
+		ID:      account1.ID,
+		Balance: util.RandomAmount(),
+	}
+
+	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "current", "created_at"}).
+		AddRow(params.ID, account1.Owner, params.Balance, account1.Currency, account1.CreatedAt)
+
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(params.ID, params.Balance).
+		WillReturnRows(rows)
+
+	account2, err := testQueries.UpdateAccount(context.Background(), params)
+	require.NoError(t, err)
+	require.NotEmpty(t, account2)
+
+	require.Equal(t, account1.ID, account2.ID)
+	require.Equal(t, account1.Owner, account2.Owner)
+	require.Equal(t, params.Balance, account2.Balance)
+	require.Equal(t, account1.Currency, account2.Currency)
+	require.WithinDuration(t, account1.CreatedAt, account2.CreatedAt, time.Second)
+
 }
 
 func createRandomAccount(t *testing.T) Account {
@@ -68,7 +101,6 @@ INSERT INTO accounts (
 		WillReturnRows(rows)
 
 	account, err := testQueries.CreateAccount(context.Background(), params)
-
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 
