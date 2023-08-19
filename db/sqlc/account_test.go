@@ -22,7 +22,7 @@ func TestGetAccount(t *testing.T) {
 		SELECT id, owner, balance, currency, created_at 
 		FROM accounts
 		WHERE id = $1 LIMIT 1
-`
+	`
 
 	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
 		AddRow(account1.ID, account1.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
@@ -50,7 +50,7 @@ func TestUpdateAccount(t *testing.T) {
 		SET balance = $2
 		WHERE id = $1
 		RETURNING id, owner, balance, currency, created_at
-`
+	`
 
 	params := UpdateAccountParams{
 		ID:      account1.ID,
