@@ -42,6 +42,44 @@ func TestGetAccount(t *testing.T) {
 	require.WithinDuration(t, account1.CreatedAt, account2.CreatedAt, time.Second)
 }
 
+func TestListAccounts(t *testing.T) {
+	var expectedAccounts []Account
+	for i := 0; i < 10; i++ {
+		account := createRandomAccount(t)
+		expectedAccounts = append(expectedAccounts, account)
+	}
+
+	query := `
+		SELECT id, owner, balance, currency, created_at 
+		FROM accounts
+		ORDER BY id
+		LIMIT $1
+		OFFSET $2
+	`
+
+	params := ListAccountsParams{
+		Limit:  5,
+		Offset: 5,
+	}
+
+	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"})
+	for _, account := range expectedAccounts[5:10] {
+		rows.AddRow(account.ID, account.Owner, account.Balance, account.Currency, account.CreatedAt)
+	}
+
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(params.Limit, params.Offset).
+		WillReturnRows(rows)
+
+	accounts, err := testQueries.ListAccounts(context.Background(), params)
+	require.NoError(t, err)
+	require.Len(t, accounts, 5)
+
+	for _, account := range accounts {
+		require.NotEmpty(t, account)
+	}
+}
+
 func TestUpdateAccount(t *testing.T) {
 	account1 := createRandomAccount(t)
 
