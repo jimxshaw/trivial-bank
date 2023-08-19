@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/jimxshaw/trivial-bank/util"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCreateAccount(t *testing.T) {
 	params := CreateAccountParams{
-		Owner:    "James",
-		Balance:  1000,
-		Currency: "USD",
+		Owner:    util.RandomOwner(),
+		Balance:  util.RandomAmount(),
+		Currency: util.RandomCurrency(),
 	}
 
 	query := `-- name: CreateAccount :one
