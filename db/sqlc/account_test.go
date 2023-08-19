@@ -19,9 +19,9 @@ func TestGetAccount(t *testing.T) {
 	account1 := createRandomAccount(t)
 
 	query := `
-SELECT id, owner, balance, currency, created_at 
-FROM accounts
-WHERE id = $1 LIMIT 1
+		SELECT id, owner, balance, currency, created_at 
+		FROM accounts
+		WHERE id = $1 LIMIT 1
 `
 
 	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
@@ -46,10 +46,10 @@ func TestUpdateAccount(t *testing.T) {
 	account1 := createRandomAccount(t)
 
 	query := `
-UPDATE accounts
-SET balance = $2
-WHERE id = $1
-RETURNING id, owner, balance, currency, created_at
+		UPDATE accounts
+		SET balance = $2
+		WHERE id = $1
+		RETURNING id, owner, balance, currency, created_at
 `
 
 	params := UpdateAccountParams{
@@ -83,13 +83,13 @@ func createRandomAccount(t *testing.T) Account {
 	}
 
 	query := `
-INSERT INTO accounts (
-  owner,
-  balance,
-  currency
-) VALUES (
-  $1, $2, $3
-) RETURNING id, owner, balance, currency, created_at
+		INSERT INTO accounts (
+			owner,
+			balance,
+			currency
+		) VALUES (
+			$1, $2, $3
+		) RETURNING id, owner, balance, currency, created_at
 `
 
 	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
