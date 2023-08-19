@@ -42,6 +42,44 @@ func TestGetTransfer(t *testing.T) {
 	require.WithinDuration(t, transfer1.CreatedAt, transfer2.CreatedAt, time.Second)
 }
 
+func TestListTransfers(t *testing.T) {
+	var expectedTransfers []Transfer
+	for i := 0; i < 10; i++ {
+		transfer := createRandomTransfer(t)
+		expectedTransfers = append(expectedTransfers, transfer)
+	}
+
+	query := `
+		SELECT id, from_account_id, to_account_id, amount, created_at 
+		FROM transfers
+		ORDER BY id
+		LIMIT $1
+		OFFSET $2
+	`
+
+	params := ListTransfersParams{
+		Limit:  5,
+		Offset: 5,
+	}
+
+	rows := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"})
+	for _, transfer := range expectedTransfers[5:10] {
+		rows.AddRow(transfer.ID, transfer.FromAccountID, transfer.ToAccountID, transfer.Amount, transfer.CreatedAt)
+	}
+
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(params.Limit, params.Offset).
+		WillReturnRows(rows)
+
+	transfers, err := testQueries.ListTransfers(context.Background(), params)
+	require.NoError(t, err)
+	require.Len(t, transfers, 5)
+
+	for _, transfer := range transfers {
+		require.NotEmpty(t, transfer)
+	}
+}
+
 func createRandomTransfer(t *testing.T) Transfer {
 	fromAccount := createRandomAccount(t)
 	toAccount := createRandomAccount(t)
