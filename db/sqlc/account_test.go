@@ -2,8 +2,11 @@ package db
 
 import (
 	"context"
+	"regexp"
 	"testing"
+	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +17,25 @@ func TestCreateAccount(t *testing.T) {
 		Currency: "USD",
 	}
 
+	query := `-- name: CreateAccount :one
+INSERT INTO accounts (
+  owner,
+  balance,
+  currency
+) VALUES (
+  $1, $2, $3
+) RETURNING id, owner, balance, currency, created_at
+`
+
+	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "current", "created_at"}).
+		AddRow(1, params.Owner, params.Balance, params.Currency, time.Now())
+
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(params.Owner, params.Balance, params.Currency).
+		WillReturnRows(rows)
+
 	account, err := testQueries.CreateAccount(context.Background(), params)
+
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 
@@ -24,4 +45,7 @@ func TestCreateAccount(t *testing.T) {
 
 	require.NotZero(t, account.ID)
 	require.NotZero(t, account.CreatedAt)
+
+	err = mock.ExpectationsWereMet()
+	require.NoError(t, err)
 }
