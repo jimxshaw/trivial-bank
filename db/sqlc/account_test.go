@@ -24,7 +24,7 @@ FROM accounts
 WHERE id = $1 LIMIT 1
 `
 
-	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "current", "created_at"}).
+	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
 		AddRow(account1.ID, account1.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
@@ -57,7 +57,7 @@ RETURNING id, owner, balance, currency, created_at
 		Balance: util.RandomAmount(),
 	}
 
-	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "current", "created_at"}).
+	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
 		AddRow(params.ID, account1.Owner, params.Balance, account1.Currency, account1.CreatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
@@ -73,7 +73,6 @@ RETURNING id, owner, balance, currency, created_at
 	require.Equal(t, params.Balance, account2.Balance)
 	require.Equal(t, account1.Currency, account2.Currency)
 	require.WithinDuration(t, account1.CreatedAt, account2.CreatedAt, time.Second)
-
 }
 
 func createRandomAccount(t *testing.T) Account {
@@ -93,7 +92,7 @@ INSERT INTO accounts (
 ) RETURNING id, owner, balance, currency, created_at
 `
 
-	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "current", "created_at"}).
+	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
 		AddRow(1, params.Owner, params.Balance, params.Currency, time.Now())
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
