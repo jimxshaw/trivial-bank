@@ -18,7 +18,7 @@ func TestCreateAccount(t *testing.T) {
 func TestGetAccount(t *testing.T) {
 	account1 := createRandomAccount(t)
 
-	query := `-- name: GetAccount :one
+	query := `
 SELECT id, owner, balance, currency, created_at 
 FROM accounts
 WHERE id = $1 LIMIT 1
@@ -45,7 +45,7 @@ WHERE id = $1 LIMIT 1
 func TestUpdateAccount(t *testing.T) {
 	account1 := createRandomAccount(t)
 
-	query := `-- name: UpdateAccount :one
+	query := `
 UPDATE accounts
 SET balance = $2
 WHERE id = $1
@@ -82,7 +82,7 @@ func createRandomAccount(t *testing.T) Account {
 		Currency: util.RandomCurrency(),
 	}
 
-	query := `-- name: CreateAccount :one
+	query := `
 INSERT INTO accounts (
   owner,
   balance,
