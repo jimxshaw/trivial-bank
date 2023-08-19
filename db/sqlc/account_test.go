@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"regexp"
 	"testing"
 	"time"
@@ -73,6 +74,27 @@ func TestUpdateAccount(t *testing.T) {
 	require.Equal(t, params.Balance, account2.Balance)
 	require.Equal(t, account1.Currency, account2.Currency)
 	require.WithinDuration(t, account1.CreatedAt, account2.CreatedAt, time.Second)
+}
+
+func TestDeleteAccount(t *testing.T) {
+	account1 := createRandomAccount(t)
+
+	query := `
+		DELETE FROM accounts
+		WHERE id = $1
+	`
+
+	mock.ExpectExec(regexp.QuoteMeta(query)).
+		WithArgs(account1.ID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err := testQueries.DeleteAccount(context.Background(), account1.ID)
+	require.NoError(t, err)
+
+	account2, err := testQueries.GetAccount(context.Background(), account1.ID)
+	require.Error(t, err)
+	require.EqualError(t, err, sql.ErrNoRows.Error())
+	require.Empty(t, account2)
 }
 
 func createRandomAccount(t *testing.T) Account {
