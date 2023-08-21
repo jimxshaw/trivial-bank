@@ -12,18 +12,18 @@ import (
 
 var testQueries *Queries
 var mock sqlmock.Sqlmock
+var testDB *sql.DB
 
 func TestMain(m *testing.M) {
-	var db *sql.DB
 	var err error
 
-	db, mock, err = sqlmock.New()
+	testDB, mock, err = sqlmock.New()
 	if err != nil {
-		log.Fatalf("failed to connect to mock database connect: %v", err)
+		log.Fatalf("failed to connect to mock database connection: %v", err)
 	}
-	defer db.Close()
+	defer testDB.Close()
 
-	testQueries = New(db)
+	testQueries = New(testDB)
 
 	os.Exit(m.Run())
 }
