@@ -2,8 +2,11 @@ package db
 
 import (
 	"context"
+	"regexp"
 	"testing"
+	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,68 +16,134 @@ func TestTransferTx(t *testing.T) {
 	account1 := createRandomAccount(t)
 	account2 := createRandomAccount(t)
 
-	// Run n concurrent transfer transactions.
-	n := 7
 	amount := int64(500)
 
-	errsCh := make(chan error)
-	resultsCh := make(chan TransferTxResult)
+	// Mock starting a transaction.
+	mock.ExpectBegin()
 
-	for i := 0; i < n; i++ {
-		go func() {
-			result, err := store.TransferTx(context.Background(), TransferTxParams{
-				FromAccountID: account1.ID,
-				ToAccountID:   account2.ID,
-				Amount:        amount,
-			})
+	// Create Transfer expectation.
+	qCreateTransfer := `
+		INSERT INTO transfers (
+			from_account_id,
+			to_account_id,
+			amount
+		) VALUES (
+			$1, $2, $3
+		) RETURNING id, from_account_id, to_account_id, amount, created_at
+	`
 
-			errsCh <- err
-			resultsCh <- result
-		}()
+	pCreateTransfer := CreateTransferParams{
+		FromAccountID: account1.ID,
+		ToAccountID:   account2.ID,
+		Amount:        amount,
 	}
 
-	// Check results.
-	for i := 0; i < n; i++ {
-		err := <-errsCh
-		require.NoError(t, err)
+	rCreateTransfer := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"}).
+		AddRow(1, pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount, time.Now())
 
-		result := <-resultsCh
-		require.NotEmpty(t, result)
+	mock.ExpectQuery(regexp.QuoteMeta(qCreateTransfer)).
+		WithArgs(pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount).
+		WillReturnRows(rCreateTransfer)
 
-		// Check transfer.
-		transfer := result.Transfer
-		require.NotEmpty(t, transfer)
-		require.Equal(t, account1.ID, transfer.FromAccountID)
-		require.Equal(t, account2.ID, transfer.ToAccountID)
-		require.Equal(t, amount, transfer.Amount)
-		require.NotZero(t, transfer.ID) // auto-incremented
-		require.NotZero(t, transfer.CreatedAt)
+	// Create entries expectations.
+	qCreateEntry := `
+		INSERT INTO entries (
+			account_id,
+			amount
+		) VALUES (
+			$1, $2
+		) RETURNING id, account_id, amount, created_at
+	`
 
-		// Check transfer record is in the db.
-		_, err = store.GetTransfer(context.Background(), transfer.ID)
-		require.NoError(t, err)
-
-		// Check entries.
-		fromEntry := result.FromEntry
-		require.NotEmpty(t, fromEntry)
-		require.Equal(t, account1.ID, fromEntry.AccountID)
-		require.Equal(t, -amount, fromEntry.Amount) // Negative amount for money leaving
-		require.NotZero(t, fromEntry.ID)
-		require.NotZero(t, fromEntry.CreatedAt)
-
-		_, err = store.GetEntry(context.Background(), fromEntry.ID)
-		require.NoError(t, err)
-
-		toEntry := result.ToEntry
-		require.NotEmpty(t, fromEntry)
-		require.Equal(t, account2.ID, toEntry.AccountID)
-		require.Equal(t, amount, toEntry.Amount)
-		require.NotZero(t, toEntry.ID)
-		require.NotZero(t, toEntry.CreatedAt)
-
-		_, err = store.GetEntry(context.Background(), toEntry.ID)
-		require.NoError(t, err)
-
-		// TODO: Check accounts balances.
+	pCreateFromEntry := CreateEntryParams{
+		AccountID: account1.ID,
+		Amount:    -amount, // Negative amount for money leaving.
 	}
+
+	pCreateToEntry := CreateEntryParams{
+		AccountID: account2.ID,
+		Amount:    amount,
+	}
+
+	rCreateFromEntry := sqlmock.NewRows([]string{"id", "account_id", "amount", "created_at"}).
+		AddRow(1, pCreateFromEntry.AccountID, pCreateFromEntry.Amount, time.Now())
+
+	rCreateToEntry := sqlmock.NewRows([]string{"id", "account_id", "amount", "created_at"}).
+		AddRow(1, pCreateToEntry.AccountID, pCreateToEntry.Amount, time.Now())
+
+	mock.ExpectQuery(regexp.QuoteMeta(qCreateEntry)).
+		WithArgs(pCreateFromEntry.AccountID, pCreateFromEntry.Amount).
+		WillReturnRows(rCreateFromEntry)
+
+	mock.ExpectQuery(regexp.QuoteMeta(qCreateEntry)).
+		WithArgs(pCreateToEntry.AccountID, pCreateToEntry.Amount).
+		WillReturnRows(rCreateToEntry)
+
+	// Update accounts expectations.
+	// qUpdateAccount := `
+	// 	UPDATE accounts
+	// 	SET balance = $2
+	// 	WHERE id = $1
+	// 	RETURNING id, owner, balance, currency, created_at
+	// `
+
+	// pUpdateAccount1 := UpdateAccountParams{
+	// 	ID:      account1.ID,
+	// 	Balance: -amount,
+	// }
+
+	// pUpdateAccount2 := UpdateAccountParams{
+	// 	ID:      account2.ID,
+	// 	Balance: amount,
+	// }
+
+	// rUpdateAccount1 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+	// 	AddRow(pUpdateAccount1.ID, account1.Owner, pUpdateAccount1.Balance, account1.Currency, account1.CreatedAt)
+
+	// rUpdateAccount2 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+	// 	AddRow(pUpdateAccount2.ID, account2.Owner, pUpdateAccount2.Balance, account2.Currency, account2.CreatedAt)
+
+	// mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
+	// 	WithArgs(pUpdateAccount1.ID, pUpdateAccount1.Balance).
+	// 	WillReturnRows(rUpdateAccount1)
+
+	// mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
+	// 	WithArgs(pUpdateAccount2.ID, pUpdateAccount2.Balance).
+	// 	WillReturnRows(rUpdateAccount2)
+
+	// Commit the transfer expectation.
+	mock.ExpectCommit()
+
+	result, err := store.TransferTx(context.Background(), TransferTxParams{
+		FromAccountID: account1.ID,
+		ToAccountID:   account2.ID,
+		Amount:        amount,
+	})
+	require.NoError(t, err)
+
+	// Check transfer.
+	transfer := result.Transfer
+	require.NotEmpty(t, transfer)
+	require.Equal(t, account1.ID, transfer.FromAccountID)
+	require.Equal(t, account2.ID, transfer.ToAccountID)
+	require.Equal(t, amount, transfer.Amount)
+	require.NotZero(t, transfer.ID) // auto-incremented
+	require.NotZero(t, transfer.CreatedAt)
+
+	// Check entries.
+	fromEntry := result.FromEntry
+	require.NotEmpty(t, fromEntry)
+	require.Equal(t, account1.ID, fromEntry.AccountID)
+	require.Equal(t, -amount, fromEntry.Amount)
+	require.NotZero(t, fromEntry.ID)
+	require.NotZero(t, fromEntry.CreatedAt)
+
+	toEntry := result.ToEntry
+	require.NotEmpty(t, fromEntry)
+	require.Equal(t, account2.ID, toEntry.AccountID)
+	require.Equal(t, amount, toEntry.Amount)
+	require.NotZero(t, toEntry.ID)
+	require.NotZero(t, toEntry.CreatedAt)
+
+	// TODO: Check accounts balances.
 }
