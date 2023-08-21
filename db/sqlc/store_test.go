@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 	"time"
@@ -18,10 +19,6 @@ func TestTransferTx(t *testing.T) {
 
 	amount := int64(500)
 
-	// Mock starting a transaction.
-	mock.ExpectBegin()
-
-	// Create Transfer expectation.
 	qCreateTransfer := `
 		INSERT INTO transfers (
 			from_account_id,
@@ -38,14 +35,6 @@ func TestTransferTx(t *testing.T) {
 		Amount:        amount,
 	}
 
-	rCreateTransfer := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"}).
-		AddRow(1, pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount, time.Now())
-
-	mock.ExpectQuery(regexp.QuoteMeta(qCreateTransfer)).
-		WithArgs(pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount).
-		WillReturnRows(rCreateTransfer)
-
-	// Create entries expectations.
 	qCreateEntry := `
 		INSERT INTO entries (
 			account_id,
@@ -65,21 +54,6 @@ func TestTransferTx(t *testing.T) {
 		Amount:    amount,
 	}
 
-	rCreateFromEntry := sqlmock.NewRows([]string{"id", "account_id", "amount", "created_at"}).
-		AddRow(1, pCreateFromEntry.AccountID, pCreateFromEntry.Amount, time.Now())
-
-	rCreateToEntry := sqlmock.NewRows([]string{"id", "account_id", "amount", "created_at"}).
-		AddRow(1, pCreateToEntry.AccountID, pCreateToEntry.Amount, time.Now())
-
-	mock.ExpectQuery(regexp.QuoteMeta(qCreateEntry)).
-		WithArgs(pCreateFromEntry.AccountID, pCreateFromEntry.Amount).
-		WillReturnRows(rCreateFromEntry)
-
-	mock.ExpectQuery(regexp.QuoteMeta(qCreateEntry)).
-		WithArgs(pCreateToEntry.AccountID, pCreateToEntry.Amount).
-		WillReturnRows(rCreateToEntry)
-
-	// Update accounts expectations.
 	// qUpdateAccount := `
 	// 	UPDATE accounts
 	// 	SET balance = $2
@@ -97,53 +71,111 @@ func TestTransferTx(t *testing.T) {
 	// 	Balance: amount,
 	// }
 
-	// rUpdateAccount1 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-	// 	AddRow(pUpdateAccount1.ID, account1.Owner, pUpdateAccount1.Balance, account1.Currency, account1.CreatedAt)
+	t.Run("Happy Path", func(t *testing.T) {
+		// Mock starting a transaction.
+		mock.ExpectBegin()
 
-	// rUpdateAccount2 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-	// 	AddRow(pUpdateAccount2.ID, account2.Owner, pUpdateAccount2.Balance, account2.Currency, account2.CreatedAt)
+		// Create Transfer expectation.
+		rCreateTransfer := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"}).
+			AddRow(1, pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount, time.Now())
 
-	// mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
-	// 	WithArgs(pUpdateAccount1.ID, pUpdateAccount1.Balance).
-	// 	WillReturnRows(rUpdateAccount1)
+		mock.ExpectQuery(regexp.QuoteMeta(qCreateTransfer)).
+			WithArgs(pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount).
+			WillReturnRows(rCreateTransfer)
 
-	// mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
-	// 	WithArgs(pUpdateAccount2.ID, pUpdateAccount2.Balance).
-	// 	WillReturnRows(rUpdateAccount2)
+		// Create entries expectations.
 
-	// Commit the transfer expectation.
-	mock.ExpectCommit()
+		rCreateFromEntry := sqlmock.NewRows([]string{"id", "account_id", "amount", "created_at"}).
+			AddRow(1, pCreateFromEntry.AccountID, pCreateFromEntry.Amount, time.Now())
 
-	result, err := store.TransferTx(context.Background(), TransferTxParams{
-		FromAccountID: account1.ID,
-		ToAccountID:   account2.ID,
-		Amount:        amount,
+		rCreateToEntry := sqlmock.NewRows([]string{"id", "account_id", "amount", "created_at"}).
+			AddRow(1, pCreateToEntry.AccountID, pCreateToEntry.Amount, time.Now())
+
+		mock.ExpectQuery(regexp.QuoteMeta(qCreateEntry)).
+			WithArgs(pCreateFromEntry.AccountID, pCreateFromEntry.Amount).
+			WillReturnRows(rCreateFromEntry)
+
+		mock.ExpectQuery(regexp.QuoteMeta(qCreateEntry)).
+			WithArgs(pCreateToEntry.AccountID, pCreateToEntry.Amount).
+			WillReturnRows(rCreateToEntry)
+
+		// Update accounts expectations.
+		// rUpdateAccount1 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+		// 	AddRow(pUpdateAccount1.ID, account1.Owner, pUpdateAccount1.Balance, account1.Currency, account1.CreatedAt)
+
+		// rUpdateAccount2 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+		// 	AddRow(pUpdateAccount2.ID, account2.Owner, pUpdateAccount2.Balance, account2.Currency, account2.CreatedAt)
+
+		// mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
+		// 	WithArgs(pUpdateAccount1.ID, pUpdateAccount1.Balance).
+		// 	WillReturnRows(rUpdateAccount1)
+
+		// mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
+		// 	WithArgs(pUpdateAccount2.ID, pUpdateAccount2.Balance).
+		// 	WillReturnRows(rUpdateAccount2)
+
+		// Commit the transfer expectation.
+		mock.ExpectCommit()
+
+		result, err := store.TransferTx(context.Background(), TransferTxParams{
+			FromAccountID: account1.ID,
+			ToAccountID:   account2.ID,
+			Amount:        amount,
+		})
+		require.NoError(t, err)
+
+		// Check transfer.
+		transfer := result.Transfer
+		require.NotEmpty(t, transfer)
+		require.Equal(t, account1.ID, transfer.FromAccountID)
+		require.Equal(t, account2.ID, transfer.ToAccountID)
+		require.Equal(t, amount, transfer.Amount)
+		require.NotZero(t, transfer.ID) // auto-incremented
+		require.NotZero(t, transfer.CreatedAt)
+
+		// Check entries.
+		fromEntry := result.FromEntry
+		require.NotEmpty(t, fromEntry)
+		require.Equal(t, account1.ID, fromEntry.AccountID)
+		require.Equal(t, -amount, fromEntry.Amount)
+		require.NotZero(t, fromEntry.ID)
+		require.NotZero(t, fromEntry.CreatedAt)
+
+		toEntry := result.ToEntry
+		require.NotEmpty(t, fromEntry)
+		require.Equal(t, account2.ID, toEntry.AccountID)
+		require.Equal(t, amount, toEntry.Amount)
+		require.NotZero(t, toEntry.ID)
+		require.NotZero(t, toEntry.CreatedAt)
+
+		// TODO: Check accounts balances.
 	})
-	require.NoError(t, err)
 
-	// Check transfer.
-	transfer := result.Transfer
-	require.NotEmpty(t, transfer)
-	require.Equal(t, account1.ID, transfer.FromAccountID)
-	require.Equal(t, account2.ID, transfer.ToAccountID)
-	require.Equal(t, amount, transfer.Amount)
-	require.NotZero(t, transfer.ID) // auto-incremented
-	require.NotZero(t, transfer.CreatedAt)
+	t.Run("Must Rollback", func(t *testing.T) {
+		mock.ExpectBegin()
 
-	// Check entries.
-	fromEntry := result.FromEntry
-	require.NotEmpty(t, fromEntry)
-	require.Equal(t, account1.ID, fromEntry.AccountID)
-	require.Equal(t, -amount, fromEntry.Amount)
-	require.NotZero(t, fromEntry.ID)
-	require.NotZero(t, fromEntry.CreatedAt)
+		rCreateTransfer := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"}).
+			AddRow(1, pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount, time.Now())
 
-	toEntry := result.ToEntry
-	require.NotEmpty(t, fromEntry)
-	require.Equal(t, account2.ID, toEntry.AccountID)
-	require.Equal(t, amount, toEntry.Amount)
-	require.NotZero(t, toEntry.ID)
-	require.NotZero(t, toEntry.CreatedAt)
+		mock.ExpectQuery(regexp.QuoteMeta(qCreateTransfer)).
+			WithArgs(pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount).
+			WillReturnRows(rCreateTransfer)
 
-	// TODO: Check accounts balances.
+		// Trigger some error.
+		mock.ExpectQuery(regexp.QuoteMeta(qCreateEntry)).
+			WithArgs(pCreateFromEntry.AccountID, pCreateFromEntry.Amount).
+			WillReturnError(errors.New("some error that triggers rollback"))
+
+		// Must rollback because of the error.
+		mock.ExpectRollback()
+
+		_, err := store.TransferTx(context.Background(), TransferTxParams{
+			FromAccountID: account1.ID,
+			ToAccountID:   account2.ID,
+			Amount:        amount,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "some error that triggers rollback")
+	})
 }
