@@ -37,7 +37,7 @@ type TransferTxResult struct {
 }
 
 // TransferTx executes a money transfer from one account to another.
-// It creates a transfer record, entry records and update accounts balances
+// It updates accounts balances, creates a transfer record and entry records
 // in a single db transaction.
 func (s *Store) TransferTx(ctx context.Context, params TransferTxParams) (TransferTxResult, error) {
 	var result TransferTxResult
@@ -45,8 +45,21 @@ func (s *Store) TransferTx(ctx context.Context, params TransferTxParams) (Transf
 	err := s.execTx(ctx, func(q *Queries) error {
 		var err error
 
-		result.Transfer, err = q.CreateTransfer(ctx, CreateTransferParams(params))
-		if err != nil {
+		// Get the accounts and lock them.
+		if result.FromAccount, err = q.GetAccountForUpdate(ctx, params.FromAccountID); err != nil {
+			return err
+		}
+
+		if result.FromAccount.Balance < params.Amount {
+			return fmt.Errorf("source account has insufficient funds")
+		}
+
+		if result.ToAccount, err = q.GetAccountForUpdate(ctx, params.ToAccountID); err != nil {
+			return err
+		}
+
+		// Create transfer and entry records as an audit trail.
+		if result.Transfer, err = q.CreateTransfer(ctx, CreateTransferParams(params)); err != nil {
 			return err
 		}
 
@@ -66,7 +79,25 @@ func (s *Store) TransferTx(ctx context.Context, params TransferTxParams) (Transf
 			return err
 		}
 
-		// TODO: Update accounts balances for transfer transactions.
+		// Update the actual accounts balances.
+		result.FromAccount.Balance -= params.Amount
+		result.ToAccount.Balance += params.Amount
+
+		_, err = q.UpdateAccount(ctx, UpdateAccountParams{
+			ID:      result.FromAccount.ID,
+			Balance: result.FromAccount.Balance,
+		})
+		if err != nil {
+			return err
+		}
+
+		_, err = q.UpdateAccount(ctx, UpdateAccountParams{
+			ID:      result.ToAccount.ID,
+			Balance: result.ToAccount.Balance,
+		})
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})
