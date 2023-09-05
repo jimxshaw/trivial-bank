@@ -195,6 +195,20 @@ func TestTransferTx(t *testing.T) {
 	t.Run("Must Rollback", func(t *testing.T) {
 		mock.ExpectBegin()
 
+		rFromAccount := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+			AddRow(account1.ID, account1.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
+
+		rToAccount := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+			AddRow(account2.ID, account2.Owner, account2.Balance, account2.Currency, account2.CreatedAt)
+
+		mock.ExpectQuery(regexp.QuoteMeta(qGetAccountForUpdate)).
+			WithArgs(account1.ID).
+			WillReturnRows(rFromAccount)
+
+		mock.ExpectQuery(regexp.QuoteMeta(qGetAccountForUpdate)).
+			WithArgs(account2.ID).
+			WillReturnRows(rToAccount)
+
 		rCreateTransfer := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"}).
 			AddRow(1, pCreateTransfer.FromAccountID, pCreateTransfer.ToAccountID, pCreateTransfer.Amount, time.Now())
 
