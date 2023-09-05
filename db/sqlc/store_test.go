@@ -84,7 +84,6 @@ func TestTransferTx(t *testing.T) {
 			WillReturnRows(rCreateTransfer)
 
 		// Create entries expectations.
-
 		rCreateFromEntry := sqlmock.NewRows([]string{"id", "account_id", "amount", "created_at"}).
 			AddRow(1, pCreateFromEntry.AccountID, pCreateFromEntry.Amount, time.Now())
 
@@ -148,7 +147,15 @@ func TestTransferTx(t *testing.T) {
 		require.NotZero(t, toEntry.ID)
 		require.NotZero(t, toEntry.CreatedAt)
 
-		// TODO: Check accounts balances.
+		// Check accounts balances.
+		fromAccount := result.FromAccount
+		require.NotEmpty(t, fromAccount)
+		require.Equal(t, account1.ID, fromAccount.ID)
+
+		toAccount := result.ToAccount
+		require.NotEmpty(t, toAccount)
+		require.Equal(t, account1.ID, toAccount.ID)
+
 	})
 
 	t.Run("Must Rollback", func(t *testing.T) {
