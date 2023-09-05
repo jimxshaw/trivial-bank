@@ -14,8 +14,21 @@ import (
 func TestTransferTx(t *testing.T) {
 	store := NewStore(testDB)
 
-	account1 := createRandomAccount(t)
-	account2 := createRandomAccount(t)
+	account1 := Account{
+		ID:        1,
+		Owner:     "Jon Snow",
+		Balance:   int64(1000),
+		Currency:  "USD",
+		CreatedAt: time.Now(),
+	}
+
+	account2 := Account{
+		ID:        2,
+		Owner:     "Ned Stark",
+		Balance:   int64(1000),
+		Currency:  "USD",
+		CreatedAt: time.Now(),
+	}
 
 	amount := int64(500)
 
@@ -54,26 +67,47 @@ func TestTransferTx(t *testing.T) {
 		Amount:    amount,
 	}
 
-	// qUpdateAccount := `
-	// 	UPDATE accounts
-	// 	SET balance = $2
-	// 	WHERE id = $1
-	// 	RETURNING id, owner, balance, currency, created_at
-	// `
+	qGetAccountForUpdate := `
+		SELECT id, owner, balance, currency, created_at
+		FROM accounts
+		WHERE id = $1 LIMIT 1 FOR UPDATE
+	`
 
-	// pUpdateAccount1 := UpdateAccountParams{
-	// 	ID:      account1.ID,
-	// 	Balance: -amount,
-	// }
+	qUpdateAccount := `
+		UPDATE accounts
+		SET balance = $2
+		WHERE id = $1
+		RETURNING id, owner, balance, currency, created_at
+	`
 
-	// pUpdateAccount2 := UpdateAccountParams{
-	// 	ID:      account2.ID,
-	// 	Balance: amount,
-	// }
+	pUpdateAccount1 := UpdateAccountParams{
+		ID:      account1.ID,
+		Balance: account1.Balance - amount,
+	}
+
+	pUpdateAccount2 := UpdateAccountParams{
+		ID:      account2.ID,
+		Balance: account2.Balance + amount,
+	}
 
 	t.Run("Happy Path", func(t *testing.T) {
 		// Mock starting a transaction.
 		mock.ExpectBegin()
+
+		// Get Accounts for Updates expectations.
+		rFromAccount := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+			AddRow(account1.ID, account1.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
+
+		rToAccount := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+			AddRow(account2.ID, account2.Owner, account2.Balance, account2.Currency, account2.CreatedAt)
+
+		mock.ExpectQuery(regexp.QuoteMeta(qGetAccountForUpdate)).
+			WithArgs(account1.ID).
+			WillReturnRows(rFromAccount)
+
+		mock.ExpectQuery(regexp.QuoteMeta(qGetAccountForUpdate)).
+			WithArgs(account2.ID).
+			WillReturnRows(rToAccount)
 
 		// Create Transfer expectation.
 		rCreateTransfer := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"}).
@@ -99,19 +133,19 @@ func TestTransferTx(t *testing.T) {
 			WillReturnRows(rCreateToEntry)
 
 		// Update accounts expectations.
-		// rUpdateAccount1 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-		// 	AddRow(pUpdateAccount1.ID, account1.Owner, pUpdateAccount1.Balance, account1.Currency, account1.CreatedAt)
+		rUpdateAccount1 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+			AddRow(pUpdateAccount1.ID, account1.Owner, pUpdateAccount1.Balance, account1.Currency, account1.CreatedAt)
 
-		// rUpdateAccount2 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-		// 	AddRow(pUpdateAccount2.ID, account2.Owner, pUpdateAccount2.Balance, account2.Currency, account2.CreatedAt)
+		rUpdateAccount2 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
+			AddRow(pUpdateAccount2.ID, account2.Owner, pUpdateAccount2.Balance, account2.Currency, account2.CreatedAt)
 
-		// mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
-		// 	WithArgs(pUpdateAccount1.ID, pUpdateAccount1.Balance).
-		// 	WillReturnRows(rUpdateAccount1)
+		mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
+			WithArgs(pUpdateAccount1.ID, pUpdateAccount1.Balance).
+			WillReturnRows(rUpdateAccount1)
 
-		// mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
-		// 	WithArgs(pUpdateAccount2.ID, pUpdateAccount2.Balance).
-		// 	WillReturnRows(rUpdateAccount2)
+		mock.ExpectQuery(regexp.QuoteMeta(qUpdateAccount)).
+			WithArgs(pUpdateAccount2.ID, pUpdateAccount2.Balance).
+			WillReturnRows(rUpdateAccount2)
 
 		// Commit the transfer expectation.
 		mock.ExpectCommit()
@@ -154,7 +188,7 @@ func TestTransferTx(t *testing.T) {
 
 		toAccount := result.ToAccount
 		require.NotEmpty(t, toAccount)
-		require.Equal(t, account1.ID, toAccount.ID)
+		require.Equal(t, account2.ID, toAccount.ID)
 
 	})
 
