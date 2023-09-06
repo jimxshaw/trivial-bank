@@ -44,17 +44,18 @@ func (s *Store) TransferTx(ctx context.Context, params TransferTxParams) (Transf
 
 	err := s.execTx(ctx, func(q *Queries) error {
 		var err error
+		var fromAccount Account
 
 		// Get the accounts and lock them.
-		if result.FromAccount, err = q.GetAccountForUpdate(ctx, params.FromAccountID); err != nil {
+		if fromAccount, err = q.GetAccountForUpdate(ctx, params.FromAccountID); err != nil {
 			return err
 		}
 
-		if result.FromAccount.Balance < params.Amount {
+		if fromAccount.Balance < params.Amount {
 			return fmt.Errorf("source account has insufficient funds")
 		}
 
-		if result.ToAccount, err = q.GetAccountForUpdate(ctx, params.ToAccountID); err != nil {
+		if _, err = q.GetAccountForUpdate(ctx, params.ToAccountID); err != nil {
 			return err
 		}
 
