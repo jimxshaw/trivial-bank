@@ -81,16 +81,19 @@ func (s *Store) TransferTx(ctx context.Context, params TransferTxParams) (Transf
 		}
 
 		// Update the accounts balances.
-		// Adding or subtracting funds must be in a specific order to prevent deadlocks.
+		// Ensures that there's a consistent order in which accounts are locked,
+		// regardless of whether they are the source or the destination
 		if params.FromAccountID < params.ToAccountID {
-			// Must subtract (-) from the source.
+			// Lock source first, then destination.
+			// Must subtract (-) amount from the source.
 			result.FromAccount, result.ToAccount, err = addMoney(ctx, q, params.FromAccountID, -params.Amount, params.ToAccountID, params.Amount)
 		} else {
-			// Must subtract (-) from the source.
+			// Lock destination first, then source.
+			// Must subtract (-) amount from the source.
 			result.ToAccount, result.FromAccount, err = addMoney(ctx, q, params.ToAccountID, params.Amount, params.FromAccountID, -params.Amount)
 		}
 
-		return nil
+		return err
 	})
 
 	return result, err
