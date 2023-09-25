@@ -1,6 +1,8 @@
 package util
 
 import (
+	cryptoRand "crypto/rand"
+	"encoding/hex"
 	"math/rand"
 	"strings"
 	"time"
@@ -31,6 +33,17 @@ func RandomString(n int) string {
 	}
 
 	return sb.String()
+}
+
+// RandomHex generates random hex values.
+func RandomHex(n int) (string, error) {
+	bytes := make([]byte, n)
+
+	if _, err := cryptoRand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(bytes), nil
 }
 
 // RandomOwner generates a random owner name.
