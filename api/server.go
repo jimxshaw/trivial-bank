@@ -22,6 +22,12 @@ func NewServer(store *db.Store) *Server {
 	return s
 }
 
+// Start runs the HTTP server on the input address.
+func (s *Server) Start(address string) error {
+	// TODO: Add graceful shutdown logic.
+	return s.router.Run(address)
+}
+
 func errorResponse(err error) gin.H {
 	return gin.H{"error": err.Error()}
 }
