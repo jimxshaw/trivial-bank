@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
@@ -23,6 +24,11 @@ type createAccountRequest struct {
 	// https://pkg.go.dev/github.com/go-playground/validator/v10
 	Owner    string `json:"owner" binding:"required"`
 	Currency string `json:"currency" binding:"required,oneof=USD EUR"`
+}
+
+// Should NOT update the balance or currency.
+type updateAccountRequest struct {
+	Owner string `json:"owner" binding:"required"`
 }
 
 func (s *Server) listAccounts(ctx *gin.Context) {
@@ -84,6 +90,34 @@ func (s *Server) createAccount(ctx *gin.Context) {
 	}
 
 	account, err := s.store.CreateAccount(ctx, params)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, account)
+}
+
+func (s *Server) updateAccount(ctx *gin.Context) {
+	var req updateAccountRequest
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	id, err := strconv.ParseInt(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	params := db.UpdateAccountParams{
+		ID:    id,
+		Owner: req.Owner,
+	}
+
+	account, err := s.store.UpdateAccount(ctx, params)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return

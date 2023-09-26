@@ -85,21 +85,21 @@ func TestUpdateAccount(t *testing.T) {
 
 	query := `
 		UPDATE accounts
-		SET balance = $2
+		SET owner = $2
 		WHERE id = $1
 		RETURNING id, owner, balance, currency, created_at
 	`
 
 	params := UpdateAccountParams{
-		ID:      account1.ID,
-		Balance: util.RandomAmount(),
+		ID:    account1.ID,
+		Owner: "Ned Stark",
 	}
 
 	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-		AddRow(params.ID, account1.Owner, params.Balance, account1.Currency, account1.CreatedAt)
+		AddRow(params.ID, params.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(params.ID, params.Balance).
+		WithArgs(params.ID, params.Owner).
 		WillReturnRows(rows)
 
 	account2, err := testQueries.UpdateAccount(context.Background(), params)
@@ -107,8 +107,8 @@ func TestUpdateAccount(t *testing.T) {
 	require.NotEmpty(t, account2)
 
 	require.Equal(t, account1.ID, account2.ID)
-	require.Equal(t, account1.Owner, account2.Owner)
-	require.Equal(t, params.Balance, account2.Balance)
+	require.Equal(t, params.Owner, account2.Owner)
+	require.Equal(t, account1.Balance, account2.Balance)
 	require.Equal(t, account1.Currency, account2.Currency)
 	require.WithinDuration(t, account1.CreatedAt, account2.CreatedAt, time.Second)
 }

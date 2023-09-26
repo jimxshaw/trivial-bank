@@ -19,6 +19,7 @@ func NewServer(store db.Store) *Server {
 	r.GET("/accounts", s.listAccounts)
 	r.GET("/accounts/:id", s.getAccount)
 	r.POST("/accounts", s.createAccount)
+	r.PUT("/accounts/:id", s.updateAccount)
 
 	// Entries
 	// TODO: Add Entries routes here.
