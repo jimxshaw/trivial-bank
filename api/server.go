@@ -27,7 +27,8 @@ func NewServer(store db.Store) *Server {
 	r.GET("/entries/:id", s.getEntry)
 
 	// Transfers
-	// TODO: Add Transfers routes here.
+	r.GET("/transfers", s.listTransfers)
+	r.GET("/transfers/:id", s.getTransfer)
 
 	s.router = r
 
