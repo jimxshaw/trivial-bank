@@ -26,9 +26,13 @@ type createAccountRequest struct {
 	Currency string `json:"currency" binding:"required,oneof=USD EUR"`
 }
 
-// Should NOT update the balance or currency.
+// Should NOT update the balance or currency here.
 type updateAccountRequest struct {
 	Owner string `json:"owner" binding:"required"`
+}
+
+type deleteAccountRequest struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
 }
 
 func (s *Server) listAccounts(ctx *gin.Context) {
@@ -106,7 +110,7 @@ func (s *Server) updateAccount(ctx *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseInt(ctx.Param("id"), 10, 32)
+	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
@@ -124,4 +128,21 @@ func (s *Server) updateAccount(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, account)
+}
+
+func (s *Server) deleteAccount(ctx *gin.Context) {
+	var req deleteAccountRequest
+
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	err := s.store.DeleteAccount(ctx, req.ID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, nil)
 }
