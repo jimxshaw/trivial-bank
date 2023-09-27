@@ -23,10 +23,12 @@ func NewServer(store db.Store) *Server {
 	r.DELETE("/accounts/:id", s.deleteAccount)
 
 	// Entries
-	// TODO: Add Entries routes here.
+	r.GET("/entries", s.listEntries)
+	r.GET("/entries/:id", s.getEntry)
 
 	// Transfers
-	// TODO: Add Transfers routes here.
+	r.GET("/transfers", s.listTransfers)
+	r.GET("/transfers/:id", s.getTransfer)
 
 	s.router = r
 
