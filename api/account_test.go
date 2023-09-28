@@ -236,7 +236,7 @@ func TestAccountAPI(t *testing.T) {
 			Owner:     "Darth Vader",
 			Balance:   0,
 			Currency:  "USD",
-			CreatedAt: time.Date(1977, 5, 4, 0, 0, 0, 0, time.Local),
+			CreatedAt: time.Date(1977, 5, 4, 0, 0, 0, 0, time.UTC),
 		}
 
 		url := fmt.Sprintf("/accounts/%d", accountToUpdate.ID)
