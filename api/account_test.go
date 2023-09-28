@@ -44,6 +44,10 @@ func TestAccountAPI(t *testing.T) {
 		return m.EXPECT().ListAccounts(gomock.Any(), params)
 	}
 
+	callDelete := func(m *mockdb.MockStore, accountID int64) *gomock.Call {
+		return m.EXPECT().DeleteAccount(gomock.Any(), accountID)
+	}
+
 	// List Accounts.
 	t.Run("list accounts", func(t *testing.T) {
 		url := "/accounts"
@@ -151,7 +155,49 @@ func TestAccountAPI(t *testing.T) {
 
 	// TODO: Update Account.
 
-	// TODO: Delete Account.
+	// Delete Account.
+	t.Run("delete account", func(t *testing.T) {
+		url := fmt.Sprintf("/accounts/%d", account.ID)
+		method := http.MethodDelete
+
+		t.Run("happy path", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callDelete(m, account.ID).
+				Times(1).
+				Return(nil)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusOK, recorder.Code)
+		})
+
+		t.Run("some error happened", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callDelete(m, account.ID).
+				Times(1).
+				Return(errors.New("some error"))
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+		})
+	})
 }
 
 func randomAccount() db.Account {
