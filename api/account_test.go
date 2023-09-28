@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,32 +14,78 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestGetAccountAPI(t *testing.T) {
+func newServerMock(m *mockdb.MockStore) *Server {
+	return NewServer(m)
+}
+
+func newStoreMock(t *testing.T) (func(), *mockdb.MockStore) {
+	ctrl := gomock.NewController(t)
+	finish := func() {
+		ctrl.Finish()
+	}
+	store := mockdb.NewMockStore(ctrl)
+	return finish, store
+}
+
+func TestAccountAPI(t *testing.T) {
 	account := randomAccount()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	// Stubs.
+	callGet := func(m *mockdb.MockStore, accountID int64) *gomock.Call {
+		return m.EXPECT().GetAccount(gomock.Any(), accountID)
+	}
 
-	store := mockdb.NewMockStore(ctrl)
+	// TODO: List Accounts.
 
-	// Create stubs.
-	store.EXPECT().
-		GetAccount(gomock.Any(), gomock.Eq(account.ID)).
-		Times(1).
-		Return(account, nil)
+	// Get Account.
+	t.Run("get account", func(t *testing.T) {
+		url := fmt.Sprintf("/accounts/%d", account.ID)
+		method := http.MethodGet
 
-	// Start test server and send request.
-	server := NewServer(store)
-	recorder := httptest.NewRecorder()
+		t.Run("happy path", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
 
-	url := fmt.Sprintf("/accounts/%d", account.ID)
-	request, err := http.NewRequest(http.MethodGet, url, nil)
-	require.NoError(t, err)
+			callGet(m, account.ID).
+				Times(1).
+				Return(account, nil)
 
-	server.router.ServeHTTP(recorder, request)
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
 
-	// Check response.
-	require.Equal(t, http.StatusOK, recorder.Code)
+			request, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusOK, recorder.Code)
+		})
+
+		t.Run("some error happened", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callGet(m, account.ID).
+				Times(1).
+				Return(db.Account{}, errors.New("some error"))
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+		})
+	})
+
+	// TODO: Create Account.
+
+	// TODO: Update Account.
+
+	// TODO: Delete Account.
 }
 
 func randomAccount() db.Account {
