@@ -46,6 +46,10 @@ func TestAccountAPI(t *testing.T) {
 		return m.EXPECT().ListAccounts(gomock.Any(), params)
 	}
 
+	callCreate := func(m *mockdb.MockStore, params db.CreateAccountParams) *gomock.Call {
+		return m.EXPECT().CreateAccount(gomock.Any(), params)
+	}
+
 	callUpdate := func(m *mockdb.MockStore, params db.UpdateAccountParams) *gomock.Call {
 		return m.EXPECT().UpdateAccount(gomock.Any(), params)
 	}
@@ -157,7 +161,61 @@ func TestAccountAPI(t *testing.T) {
 		})
 	})
 
-	// TODO: Create Account.
+	// Create Account.
+	t.Run("create account", func(t *testing.T) {
+		url := "/accounts"
+		method := http.MethodPost
+
+		jsonStr := []byte(`{"owner":"Han Solo","currency":"USD"}`)
+
+		params := db.CreateAccountParams{
+			Owner:    "Han Solo",
+			Balance:  0,
+			Currency: "USD",
+		}
+
+		t.Run("happy path", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callCreate(m, params).
+				Times(1).
+				Return(db.Account{Balance: 0, Owner: "Han Solo", Currency: "USD"}, nil)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			require.NoError(t, err)
+
+			request.Header.Set("Content-Type", "application/json")
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusOK, recorder.Code)
+		})
+
+		t.Run("some error happened", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callCreate(m, params).
+				Times(1).
+				Return(db.Account{}, errors.New("some error"))
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			require.NoError(t, err)
+
+			request.Header.Set("Content-Type", "application/json")
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+		})
+	})
 
 	// Update Account.
 	t.Run("update account", func(t *testing.T) {
