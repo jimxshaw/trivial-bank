@@ -182,9 +182,15 @@ func TestAccountAPI(t *testing.T) {
 			finish, m := newStoreMock(t)
 			defer finish()
 
+			newAccount := db.Account{
+				Balance:  0,
+				Owner:    "Han Solo",
+				Currency: "USD",
+			}
+
 			callCreate(m, params).
 				Times(1).
-				Return(db.Account{Balance: 0, Owner: "Han Solo", Currency: "USD"}, nil)
+				Return(newAccount, nil)
 
 			server := newServerMock(m)
 			recorder := httptest.NewRecorder()
@@ -197,6 +203,7 @@ func TestAccountAPI(t *testing.T) {
 			server.router.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusOK, recorder.Code)
+			requireBodyMatchAccount(t, recorder.Body, newAccount)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -218,6 +225,7 @@ func TestAccountAPI(t *testing.T) {
 			server.router.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			requireBodyMatchAccount(t, recorder.Body, db.Account{})
 		})
 	})
 
@@ -261,6 +269,7 @@ func TestAccountAPI(t *testing.T) {
 			server.router.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusOK, recorder.Code)
+			requireBodyMatchAccount(t, recorder.Body, accountToUpdate)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -282,6 +291,7 @@ func TestAccountAPI(t *testing.T) {
 			server.router.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			requireBodyMatchAccount(t, recorder.Body, db.Account{})
 		})
 	})
 
