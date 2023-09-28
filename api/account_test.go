@@ -2,8 +2,10 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -139,6 +141,7 @@ func TestAccountAPI(t *testing.T) {
 			server.router.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusOK, recorder.Code)
+			requireBodyMatchAccount(t, recorder.Body, account)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -158,6 +161,7 @@ func TestAccountAPI(t *testing.T) {
 			server.router.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			requireBodyMatchAccount(t, recorder.Body, db.Account{})
 		})
 	})
 
@@ -333,4 +337,14 @@ func randomAccount() db.Account {
 		Balance:  util.RandomAmount(),
 		Currency: util.RandomCurrency(),
 	}
+}
+
+func requireBodyMatchAccount(t *testing.T, body *bytes.Buffer, want db.Account) {
+	data, err := io.ReadAll(body)
+	require.NoError(t, err)
+
+	var got db.Account
+	err = json.Unmarshal(data, &got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
