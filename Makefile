@@ -26,4 +26,13 @@ server:
 mock:
 	mockgen -package=mockdb -destination=db/mocks/store.go github.com/jimxshaw/trivial-bank/db/sqlc Store
 
-.PHONY: postgres createdb dropdb migrateup migratedown sqlc test server mock
+.PHONY: 
+	postgres 
+	createdb 
+	dropdb 
+	migrateup 
+	migratedown 
+	sqlc 
+	test 
+	server 
+	mock
