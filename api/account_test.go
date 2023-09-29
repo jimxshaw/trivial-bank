@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -182,6 +183,25 @@ func TestAccountAPI(t *testing.T) {
 			server.router.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
+
+		t.Run("not found", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callGet(m, account.ID).
+				Times(1).
+				Return(db.Account{}, sql.ErrNoRows)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusNotFound, recorder.Code)
 		})
 	})
 
