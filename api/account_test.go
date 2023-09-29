@@ -391,6 +391,26 @@ func TestAccountAPI(t *testing.T) {
 
 			require.Equal(t, http.StatusBadRequest, recorder.Code)
 		})
+
+		t.Run("invalid JSON payload", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callUpdate(m, db.UpdateAccountParams{}).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(`{}`)))
+			require.NoError(t, err)
+
+			request.Header.Set("Content-Type", "application/json")
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
 	})
 
 	// Delete Account.
