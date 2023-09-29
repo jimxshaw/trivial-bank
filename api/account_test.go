@@ -415,6 +415,26 @@ func TestAccountAPI(t *testing.T) {
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
 		})
+
+		t.Run("invalid ID", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			invalidID := int64(0)
+
+			callDelete(m, invalidID).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
 	})
 }
 
