@@ -285,6 +285,26 @@ func TestAccountAPI(t *testing.T) {
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			requireBodyMatchAccount(t, recorder.Body, db.Account{})
 		})
+
+		t.Run("invalid JSON payload", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callCreate(m, db.CreateAccountParams{}).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(`{}`)))
+			require.NoError(t, err)
+
+			request.Header.Set("Content-Type", "application/json")
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
 	})
 
 	// Update Account.
