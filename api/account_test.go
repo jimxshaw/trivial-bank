@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -117,6 +118,24 @@ func TestAccountAPI(t *testing.T) {
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
 		})
+
+		t.Run("invalid query parameters", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callList(m, db.ListAccountsParams{Limit: 5, Offset: 4990}).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, "/accounts??page_id=999&page_size=5", nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
 	})
 
 	// Get Account.
@@ -162,6 +181,45 @@ func TestAccountAPI(t *testing.T) {
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			requireBodyMatchAccount(t, recorder.Body, db.Account{})
+		})
+
+		t.Run("invalid ID", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			invalidID := int64(0)
+
+			callGet(m, invalidID).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
+
+		t.Run("not found", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callGet(m, account.ID).
+				Times(1).
+				Return(db.Account{}, sql.ErrNoRows)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusNotFound, recorder.Code)
 		})
 	})
 
@@ -226,6 +284,26 @@ func TestAccountAPI(t *testing.T) {
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			requireBodyMatchAccount(t, recorder.Body, db.Account{})
+		})
+
+		t.Run("invalid JSON payload", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callCreate(m, db.CreateAccountParams{}).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(`{}`)))
+			require.NoError(t, err)
+
+			request.Header.Set("Content-Type", "application/json")
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
 		})
 	})
 
@@ -293,6 +371,46 @@ func TestAccountAPI(t *testing.T) {
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			requireBodyMatchAccount(t, recorder.Body, db.Account{})
 		})
+
+		t.Run("invalid ID", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callUpdate(m, params).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, "/accounts/hello", bytes.NewBuffer(jsonStr))
+			require.NoError(t, err)
+
+			request.Header.Set("Content-Type", "application/json")
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
+
+		t.Run("invalid JSON payload", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callUpdate(m, db.UpdateAccountParams{}).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(`{}`)))
+			require.NoError(t, err)
+
+			request.Header.Set("Content-Type", "application/json")
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
 	})
 
 	// Delete Account.
@@ -336,6 +454,26 @@ func TestAccountAPI(t *testing.T) {
 			server.router.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+		})
+
+		t.Run("invalid ID", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			invalidID := int64(0)
+
+			callDelete(m, invalidID).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
 		})
 	})
 }
