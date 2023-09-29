@@ -118,6 +118,24 @@ func TestAccountAPI(t *testing.T) {
 
 			require.Equal(t, http.StatusInternalServerError, recorder.Code)
 		})
+
+		t.Run("invalid query parameters", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callList(m, db.ListAccountsParams{Limit: 5, Offset: 4990}).
+				Times(0)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(method, "/accounts??page_id=999&page_size=5", nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+		})
 	})
 
 	// Get Account.
