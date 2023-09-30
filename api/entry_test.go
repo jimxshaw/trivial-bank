@@ -2,7 +2,9 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -54,6 +56,41 @@ func TestEntryAPI(t *testing.T) {
 				requireBodyMatchEntry(t, recorder.Body, entry)
 			},
 		},
+		{
+			name:    "not found",
+			entryID: entry.ID,
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, entry.ID).
+					Times(1).
+					Return(db.Entry{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name:    "some error happened",
+			entryID: entry.ID,
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, entry.ID).
+					Times(1).
+					Return(db.Entry{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+		{
+			name:    "invalid ID",
+			entryID: 0,
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, 0).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
 	}
 
 	// Get Entry run test cases.
@@ -69,7 +106,7 @@ func TestEntryAPI(t *testing.T) {
 			server := newServerMock(m)
 			recorder := httptest.NewRecorder()
 
-			url := fmt.Sprintf("/entries/%d", entry.ID)
+			url := fmt.Sprintf("/entries/%d", tc.entryID)
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
