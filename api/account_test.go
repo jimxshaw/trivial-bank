@@ -123,13 +123,13 @@ func TestAccountAPI(t *testing.T) {
 			finish, m := newStoreMock(t)
 			defer finish()
 
-			callList(m, db.ListAccountsParams{Limit: 5, Offset: 4990}).
+			callList(m, db.ListAccountsParams{Limit: 0, Offset: 0}).
 				Times(0)
 
 			server := newServerMock(m)
 			recorder := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, "/accounts??page_id=999&page_size=5", nil)
+			request, err := http.NewRequest(method, "/accounts?page_id=0&page_size=0", nil)
 			require.NoError(t, err)
 
 			server.router.ServeHTTP(recorder, request)

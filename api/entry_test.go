@@ -21,21 +21,108 @@ import (
 func TestEntryAPI(t *testing.T) {
 	entry := randomEntry()
 
-	// entries := []db.Entry{
-	// 	randomEntry(),
-	// 	randomEntry(),
-	// }
+	entries := []db.Entry{
+		randomEntry(),
+		randomEntry(),
+	}
 
 	// Stubs.
-	// callList := func(m *mockdb.MockStore, params db.ListEntriesParams) *gomock.Call {
-	// 	return m.EXPECT().ListEntries(gomock.Any(), params)
-	// }
+	callList := func(m *mockdb.MockStore, params db.ListEntriesParams) *gomock.Call {
+		return m.EXPECT().ListEntries(gomock.Any(), params)
+	}
 
 	callGet := func(m *mockdb.MockStore, entryID int64) *gomock.Call {
 		return m.EXPECT().GetEntry(gomock.Any(), entryID)
 	}
 
 	// Table Testing
+	// List Entries test cases.
+	testCasesListEntries := []struct {
+		name          string
+		pageID        int32
+		pageSize      int32
+		params        db.ListEntriesParams
+		stubs         func(m *mockdb.MockStore)
+		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
+	}{
+		{
+			name:     "happy path",
+			pageID:   1,
+			pageSize: 5,
+			stubs: func(m *mockdb.MockStore) {
+				params := db.ListEntriesParams{
+					Limit:  5,
+					Offset: 0,
+				}
+
+				callList(m, params).
+					Times(1).
+					Return(entries, nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+			},
+		},
+		{
+			name:     "some error happened",
+			pageID:   1,
+			pageSize: 5,
+			stubs: func(m *mockdb.MockStore) {
+				params := db.ListEntriesParams{
+					Limit:  5,
+					Offset: 0,
+				}
+
+				callList(m, params).
+					Times(1).
+					Return([]db.Entry{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+		{
+			name:     "invalid query parameters",
+			pageID:   0,
+			pageSize: 0,
+			stubs: func(m *mockdb.MockStore) {
+				params := db.ListEntriesParams{
+					Limit:  0,
+					Offset: 0,
+				}
+
+				callList(m, params).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+	}
+
+	// List Entries run test cases
+	for i := range testCasesListEntries {
+		tc := testCasesListEntries[i]
+
+		t.Run(tc.name, func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			tc.stubs(m)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			url := fmt.Sprintf("/entries?page_id=%d&page_size=%d", tc.pageID, tc.pageSize)
+			request, err := http.NewRequest(http.MethodGet, url, nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			tc.checkResponse(t, recorder)
+		})
+	}
+
 	// Get Entry define test cases.
 	testCasesGetEntry := []struct {
 		name          string
