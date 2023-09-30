@@ -80,6 +80,17 @@ func TestEntryAPI(t *testing.T) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			},
 		},
+		{
+			name:    "invalid ID",
+			entryID: 0,
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, 0).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
 	}
 
 	// Get Entry run test cases.
@@ -95,7 +106,7 @@ func TestEntryAPI(t *testing.T) {
 			server := newServerMock(m)
 			recorder := httptest.NewRecorder()
 
-			url := fmt.Sprintf("/entries/%d", entry.ID)
+			url := fmt.Sprintf("/entries/%d", tc.entryID)
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
