@@ -63,6 +63,41 @@ func TestEntryAPI(t *testing.T) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 			},
 		},
+		{
+			name:     "some error happened",
+			pageID:   1,
+			pageSize: 5,
+			stubs: func(m *mockdb.MockStore) {
+				params := db.ListEntriesParams{
+					Limit:  5,
+					Offset: 0,
+				}
+
+				callList(m, params).
+					Times(1).
+					Return([]db.Entry{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+		{
+			name:     "invalid query parameters",
+			pageID:   0,
+			pageSize: 0,
+			stubs: func(m *mockdb.MockStore) {
+				params := db.ListEntriesParams{
+					Limit:  0,
+					Offset: 0,
+				}
+
+				callList(m, params).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
 	}
 
 	// List Entries run test cases
