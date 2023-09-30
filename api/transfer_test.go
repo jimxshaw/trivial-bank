@@ -2,7 +2,9 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,6 +45,41 @@ func TestTransferAPI(t *testing.T) {
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchTransfer(t, recorder.Body, transfer)
+			},
+		},
+		{
+			name:       "not found",
+			transferID: transfer.ID,
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, transfer.ID).
+					Times(1).
+					Return(db.Transfer{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name:       "some error happened",
+			transferID: transfer.ID,
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, transfer.ID).
+					Times(1).
+					Return(db.Transfer{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+		{
+			name:       "invalid ID",
+			transferID: 0,
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, 0).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
 			},
 		},
 	}
