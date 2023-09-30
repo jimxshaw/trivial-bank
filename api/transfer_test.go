@@ -21,12 +21,107 @@ import (
 func TestTransferAPI(t *testing.T) {
 	transfer := randomTransfer()
 
+	transfers := []db.Transfer{
+		randomTransfer(),
+		randomTransfer(),
+	}
+
 	// Stubs.
+	callList := func(m *mockdb.MockStore, params db.ListTransfersParams) *gomock.Call {
+		return m.EXPECT().ListTransfers(gomock.Any(), params)
+	}
+
 	callGet := func(m *mockdb.MockStore, transferID int64) *gomock.Call {
 		return m.EXPECT().GetTransfer(gomock.Any(), transferID)
 	}
 
 	// Table Testing
+	// List Transfers test cases.
+	testCasesListTransfers := []struct {
+		name          string
+		pageID        int32
+		pageSize      int32
+		stubs         func(m *mockdb.MockStore)
+		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
+	}{
+		{
+			name:     "happy path",
+			pageID:   1,
+			pageSize: 5,
+			stubs: func(m *mockdb.MockStore) {
+				params := db.ListTransfersParams{
+					Limit:  5,
+					Offset: 0,
+				}
+
+				callList(m, params).
+					Times(1).
+					Return(transfers, nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+			},
+		},
+		{
+			name:     "some error happened",
+			pageID:   1,
+			pageSize: 5,
+			stubs: func(m *mockdb.MockStore) {
+				params := db.ListTransfersParams{
+					Limit:  5,
+					Offset: 0,
+				}
+
+				callList(m, params).
+					Times(1).
+					Return([]db.Transfer{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+		{
+			name:     "invalid query parameters",
+			pageID:   0,
+			pageSize: 0,
+			stubs: func(m *mockdb.MockStore) {
+				params := db.ListTransfersParams{
+					Limit:  0,
+					Offset: 0,
+				}
+
+				callList(m, params).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+	}
+
+	// List Transfers run test cases
+	for i := range testCasesListTransfers {
+		tc := testCasesListTransfers[i]
+
+		t.Run(tc.name, func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			tc.stubs(m)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			url := fmt.Sprintf("/transfers?page_id=%d&page_size=%d", tc.pageID, tc.pageSize)
+			request, err := http.NewRequest(http.MethodGet, url, nil)
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			tc.checkResponse(t, recorder)
+		})
+	}
+
 	// Get Transfer test cases.
 	testCasesGetTransfer := []struct {
 		name          string
@@ -84,7 +179,7 @@ func TestTransferAPI(t *testing.T) {
 		},
 	}
 
-	// Get Entry run test cases.
+	// Get Transfer run test cases.
 	for i := range testCasesGetTransfer {
 		tc := testCasesGetTransfer[i]
 

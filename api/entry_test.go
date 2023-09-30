@@ -41,7 +41,6 @@ func TestEntryAPI(t *testing.T) {
 		name          string
 		pageID        int32
 		pageSize      int32
-		params        db.ListEntriesParams
 		stubs         func(m *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
