@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +53,18 @@ func TestEntryAPI(t *testing.T) {
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchEntry(t, recorder.Body, entry)
+			},
+		},
+		{
+			name:    "not found",
+			entryID: entry.ID,
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, entry.ID).
+					Times(1).
+					Return(db.Entry{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
 			},
 		},
 	}
