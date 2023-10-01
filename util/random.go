@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/jimxshaw/trivial-bank/util/currency"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyz"
@@ -58,7 +60,15 @@ func RandomAmount() int64 {
 
 // RandomCurrency generates a random currency code.
 func RandomCurrency() string {
-	curr := []string{"USD", "EUR", "GBP", "CAD", "CNY", "AUD", "MXN"}
+	curr := []string{
+		currency.USD,
+		currency.EUR,
+		currency.GBP,
+		currency.CAD,
+		currency.CNY,
+		currency.AUD,
+		currency.MXN,
+	}
 	l := len(curr)
 
 	return curr[rand.Intn(l)]
