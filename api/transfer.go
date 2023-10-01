@@ -19,10 +19,10 @@ type getTransferRequest struct {
 }
 
 type createTransferRequest struct {
-	FromAccountID int64 `json:"from_account_id" binding:"required,min=1"`
-	ToAccountID   int64 `json:"to_account_id" binding:"required,min=1"`
-	Amount        int64 `json:"amount" binding:"required,gt=0"`
-	Currency      int64 `json:"currency" binding:"required,oneof=USD EUR"`
+	FromAccountID int64  `json:"from_account_id" binding:"required,min=1"`
+	ToAccountID   int64  `json:"to_account_id" binding:"required,min=1"`
+	Amount        int64  `json:"amount" binding:"required,gt=0"`
+	Currency      string `json:"currency" binding:"required,oneof=USD EUR"`
 }
 
 func (s *Server) listTransfers(ctx *gin.Context) {
@@ -74,6 +74,14 @@ func (s *Server) createTransfer(ctx *gin.Context) {
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	if !s.isValidAccount(ctx, req.FromAccountID, req.Currency) {
+		return
+	}
+
+	if !s.isValidAccount(ctx, req.ToAccountID, req.Currency) {
 		return
 	}
 
