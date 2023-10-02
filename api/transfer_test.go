@@ -282,6 +282,26 @@ func TestTransferAPI(t *testing.T) {
 				requireBodyMatch(t, recorder.Body, transferTxResult)
 			},
 		},
+		{
+			name: "some error happened",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				callGetAccount(m, toAccount.ID).
+					Times(1).
+					Return(toAccount, nil)
+
+				callCreate(m, transferTxParams).
+					Times(1).
+					Return(db.TransferTxResult{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
 	}
 
 	// Create Transfer run test cases.
