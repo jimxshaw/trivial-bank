@@ -302,6 +302,23 @@ func TestTransferAPI(t *testing.T) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			},
 		},
+		{
+			name: "invalid body",
+			body: []byte(`{"amount":250}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(0)
+
+				callGetAccount(m, toAccount.ID).
+					Times(0)
+
+				callCreate(m, transferTxParams).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
 	}
 
 	// Create Transfer run test cases.
