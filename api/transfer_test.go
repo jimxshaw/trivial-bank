@@ -26,6 +26,19 @@ func TestTransferAPI(t *testing.T) {
 		randomTransfer(),
 	}
 
+	// fromAccount := db.Account{
+	// 	ID:       1,
+	// 	Owner:    "Bilbo",
+	// 	Balance:  1000,
+	// 	Currency: "USD",
+	// }
+	// toAccount := db.Account{
+	// 	ID:       2,
+	// 	Owner:    "Thorin",
+	// 	Balance:  500,
+	// 	Currency: "USD",
+	// }
+
 	// Stubs.
 	callList := func(m *mockdb.MockStore, params db.ListTransfersParams) *gomock.Call {
 		return m.EXPECT().ListTransfers(gomock.Any(), params)
@@ -34,6 +47,10 @@ func TestTransferAPI(t *testing.T) {
 	callGet := func(m *mockdb.MockStore, transferID int64) *gomock.Call {
 		return m.EXPECT().GetTransfer(gomock.Any(), transferID)
 	}
+
+	// callCreate := func(m *mockdb.MockStore, params db.TransferTxParams) *gomock.Call {
+	// 	return m.EXPECT().TransferTx(gomock.Any(), params)
+	// }
 
 	// Table Testing
 	// List Transfers test cases.
@@ -60,6 +77,7 @@ func TestTransferAPI(t *testing.T) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatchTransferList(t, recorder.Body, transfers)
 			},
 		},
 		{
@@ -202,6 +220,25 @@ func TestTransferAPI(t *testing.T) {
 		})
 	}
 
+	// Create Transfer test cases
+	// testCasesCreateTransfer := []struct {
+	// 	name          string
+	// 	body          []byte
+	// 	stubs         func(m *mockdb.MockStore)
+	// 	checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
+	// }{
+	// 	{
+	// 		name: "happy path",
+	// 		body: []byte(`{"owner":"Han Solo","currency":"USD"}`),
+	// 		stubs: func(m *mockdb.MockStore) {
+
+	// 		},
+	// 		checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+
+	// 		},
+	// 	},
+	// }
+
 }
 
 func randomTransfer() db.Transfer {
@@ -218,6 +255,16 @@ func requireBodyMatchTransfer(t *testing.T, body *bytes.Buffer, want db.Transfer
 	require.NoError(t, err)
 
 	var got db.Transfer
+	err = json.Unmarshal(data, &got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+}
+
+func requireBodyMatchTransferList(t *testing.T, body *bytes.Buffer, want []db.Transfer) {
+	data, err := io.ReadAll(body)
+	require.NoError(t, err)
+
+	var got []db.Transfer
 	err = json.Unmarshal(data, &got)
 	require.NoError(t, err)
 	require.Equal(t, want, got)
