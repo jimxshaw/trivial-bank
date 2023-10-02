@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOriginalStart(t *testing.T) {
+func TestStart(t *testing.T) {
 	finish, m := newStoreMock(t)
 	defer finish()
 
