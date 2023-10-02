@@ -26,6 +26,49 @@ func TestTransferAPI(t *testing.T) {
 		randomTransfer(),
 	}
 
+	fromAccount := db.Account{
+		ID:       1,
+		Owner:    "Bilbo",
+		Balance:  1000,
+		Currency: "USD",
+	}
+
+	toAccount := db.Account{
+		ID:       2,
+		Owner:    "Thorin",
+		Balance:  500,
+		Currency: "USD",
+	}
+
+	transferAmount := int64(250)
+
+	transferTxParams := db.TransferTxParams{
+		FromAccountID: fromAccount.ID,
+		ToAccountID:   toAccount.ID,
+		Amount:        transferAmount,
+	}
+
+	transferTxResult := db.TransferTxResult{
+		Transfer: db.Transfer{
+			ID:            1,
+			FromAccountID: 1,
+			ToAccountID:   2,
+			Amount:        transferAmount,
+		},
+		FromAccount: fromAccount,
+		ToAccount:   toAccount,
+		FromEntry: db.Entry{
+			ID:        1,
+			AccountID: 1,
+			Amount:    -transferAmount, // must be negative from source
+		},
+		ToEntry: db.Entry{
+			ID:        2,
+			AccountID: 2,
+			Amount:    transferAmount, // must be positive to destination
+		},
+	}
+
 	// Stubs.
 	callList := func(m *mockdb.MockStore, params db.ListTransfersParams) *gomock.Call {
 		return m.EXPECT().ListTransfers(gomock.Any(), params)
@@ -33,6 +76,14 @@ func TestTransferAPI(t *testing.T) {
 
 	callGet := func(m *mockdb.MockStore, transferID int64) *gomock.Call {
 		return m.EXPECT().GetTransfer(gomock.Any(), transferID)
+	}
+
+	callCreate := func(m *mockdb.MockStore, params db.TransferTxParams) *gomock.Call {
+		return m.EXPECT().TransferTx(gomock.Any(), params)
+	}
+
+	callGetAccount := func(m *mockdb.MockStore, accountID int64) *gomock.Call {
+		return m.EXPECT().GetAccount(gomock.Any(), accountID)
 	}
 
 	// Table Testing
@@ -60,6 +111,7 @@ func TestTransferAPI(t *testing.T) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatch(t, recorder.Body, transfers)
 			},
 		},
 		{
@@ -139,7 +191,7 @@ func TestTransferAPI(t *testing.T) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
-				requireBodyMatchTransfer(t, recorder.Body, transfer)
+				requireBodyMatch(t, recorder.Body, transfer)
 			},
 		},
 		{
@@ -202,6 +254,165 @@ func TestTransferAPI(t *testing.T) {
 		})
 	}
 
+	// Create Transfer test cases.
+	testCasesCreateTransfer := []struct {
+		name          string
+		body          []byte
+		stubs         func(m *mockdb.MockStore)
+		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
+	}{
+		{
+			name: "happy path",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				callGetAccount(m, toAccount.ID).
+					Times(1).
+					Return(toAccount, nil)
+
+				callCreate(m, transferTxParams).
+					Times(1).
+					Return(transferTxResult, nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatch(t, recorder.Body, transferTxResult)
+			},
+		},
+		{
+			name: "some error happened",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				callGetAccount(m, toAccount.ID).
+					Times(1).
+					Return(toAccount, nil)
+
+				callCreate(m, transferTxParams).
+					Times(1).
+					Return(db.TransferTxResult{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+		{
+			name: "invalid body",
+			body: []byte(`{"amount":250}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(0)
+
+				callGetAccount(m, toAccount.ID).
+					Times(0)
+
+				callCreate(m, transferTxParams).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+		{
+			name: "fromAccount ID does not exist",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(db.Account{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name: "fromAccount ID currency mismatch",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"EUR"}`), // Euro
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+		{
+			name: "toAccount ID does not exist",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				callGetAccount(m, toAccount.ID).
+					Times(1).
+					Return(db.Account{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name: "toAccount ID currency mismatch",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				toAccount.Currency = "EUR"
+
+				callGetAccount(m, toAccount.ID).
+					Times(1).
+					Return(toAccount, nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+		{
+			name: "error during get account",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(db.Account{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+	}
+
+	// Create Transfer run test cases.
+	for i := range testCasesCreateTransfer {
+		tc := testCasesCreateTransfer[i]
+
+		t.Run(tc.name, func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			tc.stubs(m)
+
+			server := newServerMock(m)
+			recorder := httptest.NewRecorder()
+
+			request, err := http.NewRequest(http.MethodPost, "/transfers", bytes.NewBuffer(tc.body))
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+
+			tc.checkResponse(t, recorder)
+		})
+	}
+
 }
 
 func randomTransfer() db.Transfer {
@@ -213,12 +424,27 @@ func randomTransfer() db.Transfer {
 	}
 }
 
-func requireBodyMatchTransfer(t *testing.T, body *bytes.Buffer, want db.Transfer) {
+func requireBodyMatch(t *testing.T, body *bytes.Buffer, want interface{}) {
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var got db.Transfer
-	err = json.Unmarshal(data, &got)
-	require.NoError(t, err)
-	require.Equal(t, want, got)
+	switch v := want.(type) {
+	case db.Transfer:
+		var got db.Transfer
+		err = json.Unmarshal(data, &got)
+		require.NoError(t, err)
+		require.Equal(t, v, got)
+	case []db.Transfer:
+		var got []db.Transfer
+		err = json.Unmarshal(data, &got)
+		require.NoError(t, err)
+		require.Equal(t, v, got)
+	case db.TransferTxResult:
+		var got db.TransferTxResult
+		err = json.Unmarshal(data, &got)
+		require.NoError(t, err)
+		require.Equal(t, v, got)
+	default:
+		t.Fatalf("unsupported type: %T", want)
+	}
 }

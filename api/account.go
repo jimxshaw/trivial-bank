@@ -22,8 +22,9 @@ type getAccountRequest struct {
 
 type createAccountRequest struct {
 	// https://pkg.go.dev/github.com/go-playground/validator/v10
-	Owner    string `json:"owner" binding:"required"`
-	Currency string `json:"currency" binding:"required,oneof=USD EUR"`
+	Owner string `json:"owner" binding:"required"`
+	// Custom validation called currency registered in server.go.
+	Currency string `json:"currency" binding:"required,currency"`
 }
 
 // Should NOT update the balance or currency here.
