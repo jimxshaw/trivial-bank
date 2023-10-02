@@ -319,6 +319,76 @@ func TestTransferAPI(t *testing.T) {
 				require.Equal(t, http.StatusBadRequest, recorder.Code)
 			},
 		},
+		{
+			name: "fromAccount ID does not exist",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(db.Account{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name: "fromAccount ID currency mismatch",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"EUR"}`), // Euro
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+		{
+			name: "toAccount ID does not exist",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				callGetAccount(m, toAccount.ID).
+					Times(1).
+					Return(db.Account{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name: "toAccount ID currency mismatch",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				toAccount.Currency = "EUR"
+
+				callGetAccount(m, toAccount.ID).
+					Times(1).
+					Return(toAccount, nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+		{
+			name: "error during get account",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(db.Account{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
 	}
 
 	// Create Transfer run test cases.
