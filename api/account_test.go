@@ -228,10 +228,10 @@ func TestAccountAPI(t *testing.T) {
 		url := "/accounts"
 		method := http.MethodPost
 
-		jsonStr := []byte(`{"owner":"Han Solo","currency":"USD"}`)
+		jsonStr := []byte(`{"user_id":1,"currency":"USD"}`)
 
 		params := db.CreateAccountParams{
-			Owner:    "Han Solo",
+			UserID:   1,
 			Balance:  0,
 			Currency: "USD",
 		}
@@ -242,7 +242,7 @@ func TestAccountAPI(t *testing.T) {
 
 			newAccount := db.Account{
 				Balance:  0,
-				Owner:    "Han Solo",
+				UserID:   1,
 				Currency: "USD",
 			}
 
@@ -311,7 +311,7 @@ func TestAccountAPI(t *testing.T) {
 	t.Run("update account", func(t *testing.T) {
 		accountToUpdate := db.Account{
 			ID:        0,
-			Owner:     "Darth Vader",
+			UserID:    1,
 			Balance:   0,
 			Currency:  "USD",
 			CreatedAt: time.Date(1977, 5, 4, 0, 0, 0, 0, time.UTC),
@@ -320,17 +320,17 @@ func TestAccountAPI(t *testing.T) {
 		url := fmt.Sprintf("/accounts/%d", accountToUpdate.ID)
 		method := http.MethodPut
 
-		jsonStr := []byte(`{"owner":"Han Solo"}`)
+		jsonStr := []byte(`{"user_id":2}`)
 
 		params := db.UpdateAccountParams{
-			Owner: "Han Solo",
+			UserID: 2,
 		}
 
 		t.Run("happy path", func(t *testing.T) {
 			finish, m := newStoreMock(t)
 			defer finish()
 
-			accountToUpdate.Owner = "Han Solo"
+			accountToUpdate.UserID = 2
 
 			callUpdate(m, params).
 				Times(1).
@@ -481,7 +481,7 @@ func TestAccountAPI(t *testing.T) {
 func randomAccount() db.Account {
 	return db.Account{
 		ID:       util.RandomInt(1, 1000),
-		Owner:    util.RandomOwner(),
+		UserID:   util.RandomInt(1, 1_000_000),
 		Balance:  util.RandomAmount(),
 		Currency: util.RandomCurrency(),
 	}

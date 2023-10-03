@@ -19,13 +19,13 @@ func TestGetAccount(t *testing.T) {
 	account1 := createRandomAccount(t)
 
 	query := `
-		SELECT id, owner, balance, currency, created_at 
+		SELECT id, user_id, balance, currency, created_at 
 		FROM accounts
 		WHERE id = $1 LIMIT 1
 	`
 
-	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-		AddRow(account1.ID, account1.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
+	rows := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+		AddRow(account1.ID, account1.UserID, account1.Balance, account1.Currency, account1.CreatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
 		WithArgs(account1.ID).
@@ -36,7 +36,7 @@ func TestGetAccount(t *testing.T) {
 	require.NotEmpty(t, account2)
 
 	require.Equal(t, account1.ID, account2.ID)
-	require.Equal(t, account1.Owner, account2.Owner)
+	require.Equal(t, account1.UserID, account2.UserID)
 	require.Equal(t, account1.Balance, account2.Balance)
 	require.Equal(t, account1.Currency, account2.Currency)
 	require.WithinDuration(t, account1.CreatedAt, account2.CreatedAt, time.Second)
@@ -50,7 +50,7 @@ func TestListAccounts(t *testing.T) {
 	}
 
 	query := `
-		SELECT id, owner, balance, currency, created_at 
+		SELECT id, user_id, balance, currency, created_at 
 		FROM accounts
 		ORDER BY id
 		LIMIT $1
@@ -62,9 +62,9 @@ func TestListAccounts(t *testing.T) {
 		Offset: 5,
 	}
 
-	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"})
+	rows := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"})
 	for _, account := range expectedAccounts[5:10] {
-		rows.AddRow(account.ID, account.Owner, account.Balance, account.Currency, account.CreatedAt)
+		rows.AddRow(account.ID, account.UserID, account.Balance, account.Currency, account.CreatedAt)
 	}
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
@@ -85,21 +85,21 @@ func TestUpdateAccount(t *testing.T) {
 
 	query := `
 		UPDATE accounts
-		SET owner = $2
+		SET user_id = $2
 		WHERE id = $1
-		RETURNING id, owner, balance, currency, created_at
+		RETURNING id, user_id, balance, currency, created_at
 	`
 
 	params := UpdateAccountParams{
-		ID:    account1.ID,
-		Owner: "Ned Stark",
+		ID:     account1.ID,
+		UserID: 1,
 	}
 
-	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-		AddRow(params.ID, params.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
+	rows := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+		AddRow(params.ID, params.UserID, account1.Balance, account1.Currency, account1.CreatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(params.ID, params.Owner).
+		WithArgs(params.ID, params.UserID).
 		WillReturnRows(rows)
 
 	account2, err := testQueries.UpdateAccount(context.Background(), params)
@@ -107,7 +107,7 @@ func TestUpdateAccount(t *testing.T) {
 	require.NotEmpty(t, account2)
 
 	require.Equal(t, account1.ID, account2.ID)
-	require.Equal(t, params.Owner, account2.Owner)
+	require.Equal(t, params.UserID, account2.UserID)
 	require.Equal(t, account1.Balance, account2.Balance)
 	require.Equal(t, account1.Currency, account2.Currency)
 	require.WithinDuration(t, account1.CreatedAt, account2.CreatedAt, time.Second)
@@ -131,33 +131,33 @@ func TestDeleteAccount(t *testing.T) {
 
 func createRandomAccount(t *testing.T) Account {
 	params := CreateAccountParams{
-		Owner:    util.RandomOwner(),
+		UserID:   util.RandomInt(1, 1_000_000),
 		Balance:  util.RandomAmount(),
 		Currency: util.RandomCurrency(),
 	}
 
 	query := `
 		INSERT INTO accounts (
-			owner,
+			user_id,
 			balance,
 			currency
 		) VALUES (
 			$1, $2, $3
-		) RETURNING id, owner, balance, currency, created_at
+		) RETURNING id, user_id, balance, currency, created_at
 `
 
-	rows := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-		AddRow(1, params.Owner, params.Balance, params.Currency, time.Now())
+	rows := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+		AddRow(1, params.UserID, params.Balance, params.Currency, time.Now())
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(params.Owner, params.Balance, params.Currency).
+		WithArgs(params.UserID, params.Balance, params.Currency).
 		WillReturnRows(rows)
 
 	account, err := testQueries.CreateAccount(context.Background(), params)
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 
-	require.Equal(t, params.Owner, account.Owner)
+	require.Equal(t, params.UserID, account.UserID)
 	require.Equal(t, params.Balance, account.Balance)
 	require.Equal(t, params.Currency, account.Currency)
 

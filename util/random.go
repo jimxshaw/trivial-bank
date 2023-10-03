@@ -48,11 +48,6 @@ func RandomHex(n int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// RandomOwner generates a random owner name.
-func RandomOwner() string {
-	return RandomString(8)
-}
-
 // RandomAmount generates a random amount of money.
 func RandomAmount() int64 {
 	return RandomInt(0, 1_000_000)

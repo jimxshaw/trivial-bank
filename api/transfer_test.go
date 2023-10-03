@@ -28,14 +28,14 @@ func TestTransferAPI(t *testing.T) {
 
 	fromAccount := db.Account{
 		ID:       1,
-		Owner:    "Bilbo",
+		UserID:   1,
 		Balance:  1000,
 		Currency: "USD",
 	}
 
 	toAccount := db.Account{
 		ID:       2,
-		Owner:    "Thorin",
+		UserID:   2,
 		Balance:  500,
 		Currency: "USD",
 	}
