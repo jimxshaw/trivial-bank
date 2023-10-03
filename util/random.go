@@ -3,6 +3,8 @@ package util
 import (
 	cryptoRand "crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 	"time"
@@ -67,4 +69,32 @@ func RandomCurrency() string {
 	l := len(curr)
 
 	return curr[rand.Intn(l)]
+}
+
+// RandomPassword generates a random hashed password.
+func RandomPassword() string {
+	password := RandomString(15)
+	hash, err := HashPassword(password)
+	if err != nil {
+		log.Fatal()
+	}
+
+	return hash
+}
+
+// RandomEmail generates a random email address.
+func RandomEmail() string {
+	username := RandomString(10)
+	domain := RandomString(10)
+	extension := RandomString(3)
+
+	return fmt.Sprintf("%s@%s.%s", username, domain, extension)
+}
+
+// RandomUsernam generates a random username.
+func RandomUsername() string {
+	prefix := RandomString(10)
+	suffix := RandomInt(0, 99)
+
+	return fmt.Sprintf("%s%d", prefix, suffix)
 }
