@@ -12,9 +12,15 @@ migrate:
 	migrate create -ext sql -dir db/migration -seq $(NAME)
 
 migrateup:
+	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose up 1
+
+migrateupall:
 	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose up
 
 migratedown:
+	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose down 1
+
+migratedownall:
 	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose down
 
 sqlc:
@@ -31,13 +37,15 @@ mock:
 	mockgen -package=mockdb -destination=db/mocks/store.go github.com/jimxshaw/trivial-bank/db/sqlc Store
 
 .PHONY: 
-	postgres 
-	createdb 
+	postgres
+	createdb
 	dropdb
-	migrate 
-	migrateup 
-	migratedown 
-	sqlc 
-	test 
-	server 
+	migrate
+	migrateup
+	migrateupall
+	migratedown
+	migratedownall
+	sqlc
+	test
+	server
 	mock
