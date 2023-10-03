@@ -7,6 +7,10 @@ createdb:
 dropdb:
 	docker exec -it postgres12 dropdb trivial_bank
 
+# make migrate NAME=input_migration_name
+migrate:
+	migrate create -ext sql -dir db/migration -seq $(NAME)
+
 migrateup:
 	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose up
 
@@ -29,7 +33,8 @@ mock:
 .PHONY: 
 	postgres 
 	createdb 
-	dropdb 
+	dropdb
+	migrate 
 	migrateup 
 	migratedown 
 	sqlc 
