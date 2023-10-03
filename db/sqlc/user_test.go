@@ -15,7 +15,35 @@ func TestCreateUser(t *testing.T) {
 	createRandomUser(t)
 }
 
+func TestGetUser(t *testing.T) {
+	user1 := createRandomUser(t)
 
+	query := `
+		SELECT id, first_name, last_name, email, username, password, password_changed_at, created_at 
+		FROM users
+		WHERE id = $1 LIMIT 1
+	`
+
+	rows := sqlmock.NewRows([]string{"id", "first_name", "last_name", "email", "username", "password", "password_changed_at", "created_at"}).
+		AddRow(1, user1.FirstName, user1.LastName, user1.Email, user1.Username, user1.Password, time.Now(), time.Now())
+
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(user1.ID).
+		WillReturnRows(rows)
+
+	user2, err := testQueries.GetUser(context.Background(), user1.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, user2)
+
+	require.Equal(t, user1.ID, user2.ID)
+	require.Equal(t, user1.FirstName, user2.FirstName)
+	require.Equal(t, user1.LastName, user2.LastName)
+	require.Equal(t, user1.Email, user2.Email)
+	require.Equal(t, user1.Username, user2.Username)
+	require.Equal(t, user1.Password, user2.Password)
+	require.WithinDuration(t, user1.PasswordChangedAt, user2.PasswordChangedAt, time.Second)
+	require.WithinDuration(t, user1.CreatedAt, user2.CreatedAt, time.Second)
+}
 
 func createRandomUser(t *testing.T) User {
 	params := CreateUserParams{
