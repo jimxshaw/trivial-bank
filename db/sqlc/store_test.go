@@ -16,7 +16,7 @@ func TestTransferTx(t *testing.T) {
 
 	account1 := Account{
 		ID:        1,
-		Owner:     "Jon Snow",
+		UserID:    1,
 		Balance:   int64(1000),
 		Currency:  "USD",
 		CreatedAt: time.Now(),
@@ -24,7 +24,7 @@ func TestTransferTx(t *testing.T) {
 
 	account2 := Account{
 		ID:        2,
-		Owner:     "Ned Stark",
+		UserID:    2,
 		Balance:   int64(1000),
 		Currency:  "USD",
 		CreatedAt: time.Now(),
@@ -95,11 +95,11 @@ func TestTransferTx(t *testing.T) {
 		mock.ExpectBegin()
 
 		// Get Accounts for Updates expectations.
-		rFromAccount := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-			AddRow(account1.ID, account1.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
+		rFromAccount := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+			AddRow(account1.ID, account1.UserID, account1.Balance, account1.Currency, account1.CreatedAt)
 
-		rToAccount := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-			AddRow(account2.ID, account2.Owner, account2.Balance, account2.Currency, account2.CreatedAt)
+		rToAccount := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+			AddRow(account2.ID, account2.UserID, account2.Balance, account2.Currency, account2.CreatedAt)
 
 		mock.ExpectQuery(regexp.QuoteMeta(qGetAccountForUpdate)).
 			WithArgs(account1.ID).
@@ -133,11 +133,11 @@ func TestTransferTx(t *testing.T) {
 			WillReturnRows(rCreateToEntry)
 
 		// Update accounts expectations.
-		rUpdateAccount1 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-			AddRow(account1.ID, account1.Owner, account1.Balance-amount, account1.Currency, account1.CreatedAt)
+		rUpdateAccount1 := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+			AddRow(account1.ID, account1.UserID, account1.Balance-amount, account1.Currency, account1.CreatedAt)
 
-		rUpdateAccount2 := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-			AddRow(account2.ID, account2.Owner, account2.Balance+amount, account2.Currency, account2.CreatedAt)
+		rUpdateAccount2 := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+			AddRow(account2.ID, account2.UserID, account2.Balance+amount, account2.Currency, account2.CreatedAt)
 
 		mock.ExpectQuery(regexp.QuoteMeta(qAddToAccountBalance)).
 			WithArgs(pAddtoAccountBalance1.Amount, pAddtoAccountBalance1.ID).
@@ -197,11 +197,11 @@ func TestTransferTx(t *testing.T) {
 	t.Run("Must Rollback", func(t *testing.T) {
 		mock.ExpectBegin()
 
-		rFromAccount := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-			AddRow(account1.ID, account1.Owner, account1.Balance, account1.Currency, account1.CreatedAt)
+		rFromAccount := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+			AddRow(account1.ID, account1.UserID, account1.Balance, account1.Currency, account1.CreatedAt)
 
-		rToAccount := sqlmock.NewRows([]string{"id", "owner", "balance", "currency", "created_at"}).
-			AddRow(account2.ID, account2.Owner, account2.Balance, account2.Currency, account2.CreatedAt)
+		rToAccount := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"}).
+			AddRow(account2.ID, account2.UserID, account2.Balance, account2.Currency, account2.CreatedAt)
 
 		mock.ExpectQuery(regexp.QuoteMeta(qGetAccountForUpdate)).
 			WithArgs(account1.ID).
