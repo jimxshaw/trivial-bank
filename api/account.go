@@ -22,14 +22,14 @@ type getAccountRequest struct {
 
 type createAccountRequest struct {
 	// https://pkg.go.dev/github.com/go-playground/validator/v10
-	Owner string `json:"owner" binding:"required"`
+	UserID int64 `json:"user_id" binding:"required"`
 	// Custom validation called currency registered in server.go.
 	Currency string `json:"currency" binding:"required,currency"`
 }
 
 // Should NOT update the balance or currency here.
 type updateAccountRequest struct {
-	Owner string `json:"owner" binding:"required"`
+	UserID int64 `json:"user_id" binding:"required"`
 }
 
 type deleteAccountRequest struct {
@@ -89,7 +89,7 @@ func (s *Server) createAccount(ctx *gin.Context) {
 	}
 
 	params := db.CreateAccountParams{
-		Owner:    req.Owner,
+		UserID:   req.UserID,
 		Currency: req.Currency,
 		Balance:  0,
 	}
@@ -118,8 +118,8 @@ func (s *Server) updateAccount(ctx *gin.Context) {
 	}
 
 	params := db.UpdateAccountParams{
-		ID:    id,
-		Owner: req.Owner,
+		ID:     id,
+		UserID: req.UserID,
 	}
 
 	account, err := s.store.UpdateAccount(ctx, params)
