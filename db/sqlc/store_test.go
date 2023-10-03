@@ -68,7 +68,7 @@ func TestTransferTx(t *testing.T) {
 	}
 
 	qGetAccountForUpdate := `
-		SELECT id, owner, balance, currency, created_at
+		SELECT id, user_id, balance, currency, created_at
 		FROM accounts
 		WHERE id = $1 LIMIT 1 FOR NO KEY UPDATE
 	`
@@ -77,7 +77,7 @@ func TestTransferTx(t *testing.T) {
 		UPDATE accounts
 		SET balance = balance + $1
 		WHERE id = $2
-		RETURNING id, owner, balance, currency, created_at
+		RETURNING id, user_id, balance, currency, created_at
 	`
 
 	pAddtoAccountBalance1 := AddToAccountBalanceParams{
