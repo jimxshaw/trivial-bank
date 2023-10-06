@@ -6,7 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"github.com/jimxshaw/tracerlogger/tracer"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
+	mw "github.com/jimxshaw/trivial-bank/util/middleware"
 )
 
 // Server serves HTTP requests for our application.
@@ -19,10 +21,15 @@ func NewServer(store db.Store) *Server {
 	s := &Server{store: store}
 	r := gin.Default()
 
+	/* Middlewares */
+	r.Use(mw.GinAdapter(tracer.TraceMiddleware()))
+
+	/* Validators */
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("currency", validCurrency)
 	}
 
+	/* Routes */
 	// Health check
 	r.GET("/health", s.healthCheck)
 
