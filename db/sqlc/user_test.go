@@ -46,10 +46,8 @@ func TestGetUser(t *testing.T) {
 }
 
 func createRandomUser(t *testing.T) User {
-	randPwd, err := util.RandomPassword()
-	if err != nil {
-		t.Fatalf("Failed to generate a random password: %v", err)
-	}
+	randPwd, err := util.HashPassword(util.RandomString(10))
+	require.NoError(t, err)
 
 	params := CreateUserParams{
 		FirstName: util.RandomString(10),
