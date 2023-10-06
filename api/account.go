@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	tl "github.com/jimxshaw/tracerlogger"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	"github.com/lib/pq"
 )
@@ -41,7 +42,7 @@ func (s *Server) listAccounts(ctx *gin.Context) {
 	var req listAccountsRequest
 
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
@@ -52,40 +53,40 @@ func (s *Server) listAccounts(ctx *gin.Context) {
 
 	accounts, err := s.store.ListAccounts(ctx, params)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, accounts)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, accounts)
 }
 
 func (s *Server) getAccount(ctx *gin.Context) {
 	var req getAccountRequest
 
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
 	account, err := s.store.GetAccount(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			errorResponse(tl.CodeNotFound, ctx.Writer)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, account)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, account)
 }
 
 func (s *Server) createAccount(ctx *gin.Context) {
 	var req createAccountRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
@@ -100,28 +101,34 @@ func (s *Server) createAccount(ctx *gin.Context) {
 		if pqErr, ok := err.(*pq.Error); ok {
 			switch pqErr.Code.Name() {
 			case "foreign_key_violation", "unique_violation":
-				ctx.JSON(http.StatusForbidden, errorResponse(err))
+				errorResponse(tl.CodeForbidden, ctx.Writer)
 				return
 			}
 		}
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, account)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, account)
 }
 
 func (s *Server) updateAccount(ctx *gin.Context) {
 	var req updateAccountRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errRes := tl.ResponseError{}
+		errRes.AddValidationError(
+			tl.CodeRouteVariableRequired,
+			"id",
+			"id route param missing or not a number",
+		)
+		tl.RespondWithError(ctx.Writer, http.StatusBadRequest, errRes)
 		return
 	}
 
@@ -132,26 +139,26 @@ func (s *Server) updateAccount(ctx *gin.Context) {
 
 	account, err := s.store.UpdateAccount(ctx, params)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, account)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, account)
 }
 
 func (s *Server) deleteAccount(ctx *gin.Context) {
 	var req deleteAccountRequest
 
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
 	err := s.store.DeleteAccount(ctx, req.ID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, nil)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, map[string]string{"message": "account deleted"})
 }
