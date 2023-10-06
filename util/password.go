@@ -14,3 +14,8 @@ func HashPassword(password string) (string, error) {
 	}
 	return string(hashed), nil
 }
+
+// ComparePasswords checks if the input password and hashed password are the same or not.
+func ComparePasswords(password string, hashedPassword string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
