@@ -46,12 +46,17 @@ func TestGetUser(t *testing.T) {
 }
 
 func createRandomUser(t *testing.T) User {
+	randPwd, err := util.RandomPassword()
+	if err != nil {
+		t.Fatalf("Failed to generate a random password: %v", err)
+	}
+
 	params := CreateUserParams{
 		FirstName: util.RandomString(10),
 		LastName:  util.RandomString(10),
 		Email:     util.RandomEmail(),
 		Username:  util.RandomUsername(),
-		Password:  util.RandomPassword(),
+		Password:  randPwd,
 	}
 
 	query := `

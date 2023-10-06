@@ -4,7 +4,6 @@ import (
 	cryptoRand "crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/rand"
 	"strings"
 	"time"
@@ -72,14 +71,14 @@ func RandomCurrency() string {
 }
 
 // RandomPassword generates a random hashed password.
-func RandomPassword() string {
+func RandomPassword() (string, error) {
 	password := RandomString(15)
 	hash, err := HashPassword(password)
 	if err != nil {
-		log.Fatal()
+		return "", err
 	}
 
-	return hash
+	return hash, nil
 }
 
 // RandomEmail generates a random email address.
