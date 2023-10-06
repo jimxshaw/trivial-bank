@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	tl "github.com/jimxshaw/tracerlogger"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 )
 
@@ -29,7 +30,7 @@ func (s *Server) listTransfers(ctx *gin.Context) {
 	var req listTransfersRequest
 
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
@@ -40,40 +41,40 @@ func (s *Server) listTransfers(ctx *gin.Context) {
 
 	transfers, err := s.store.ListTransfers(ctx, params)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, transfers)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, transfers)
 }
 
 func (s *Server) getTransfer(ctx *gin.Context) {
 	var req getTransferRequest
 
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
 	transfer, err := s.store.GetTransfer(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			errorResponse(tl.CodeNotFound, ctx.Writer)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, transfer)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, transfer)
 }
 
 func (s *Server) createTransfer(ctx *gin.Context) {
 	var req createTransferRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
@@ -93,29 +94,29 @@ func (s *Server) createTransfer(ctx *gin.Context) {
 
 	result, err := s.store.TransferTx(ctx, params)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, result)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, result)
 }
 
 func (s *Server) isValidAccount(ctx *gin.Context, accountID int64, currency string) bool {
 	account, err := s.store.GetAccount(ctx, accountID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			errorResponse(tl.CodeNotFound, ctx.Writer)
 			return false
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return false
 	}
 
 	if account.Currency != currency {
 		err := fmt.Errorf("account [%d] currency mismatch: %s vs %s", account.ID, account.Currency, currency)
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
-
+		errRes := tl.ResponseError{}
+		errRes.Respond(ctx.Writer, http.StatusBadRequest, err)
 		return false
 	}
 

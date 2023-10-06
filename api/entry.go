@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	tl "github.com/jimxshaw/tracerlogger"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 )
 
@@ -21,7 +22,7 @@ func (s *Server) listEntries(ctx *gin.Context) {
 	var req listEntriesRequest
 
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
@@ -32,31 +33,31 @@ func (s *Server) listEntries(ctx *gin.Context) {
 
 	entries, err := s.store.ListEntries(ctx, params)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, entries)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, entries)
 }
 
 func (s *Server) getEntry(ctx *gin.Context) {
 	var req getEntryRequest
 
 	if err := ctx.ShouldBindUri(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
 	entry, err := s.store.GetEntry(ctx, req.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			errorResponse(tl.CodeNotFound, ctx.Writer)
 			return
 		}
 
-		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, entry)
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, entry)
 }

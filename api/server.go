@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	tl "github.com/jimxshaw/tracerlogger"
 	"github.com/jimxshaw/tracerlogger/tracer"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	mw "github.com/jimxshaw/trivial-bank/util/middleware"
@@ -64,6 +65,23 @@ func (s *Server) healthCheck(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"status": "UP"})
 }
 
-func errorResponse(err error) gin.H {
-	return gin.H{"error": err.Error()}
+// errorResponse has common response for handler errors.
+func errorResponse(err error, w http.ResponseWriter) {
+	errRes, ok := err.(tl.Error)
+	if !ok {
+		tl.CodeInternalServerError.
+			Respond(w, http.StatusInternalServerError, nil)
+		return
+	}
+
+	switch errRes.CodeError() {
+	case tl.CodeInternalServerError:
+		errRes.Respond(w, http.StatusInternalServerError, nil)
+	case tl.CodeBadRequest:
+		errRes.Respond(w, http.StatusBadRequest, nil)
+	case tl.CodeForbidden:
+		errRes.Respond(w, http.StatusForbidden, nil)
+	case tl.CodeNotFound:
+		errRes.Respond(w, http.StatusNotFound, nil)
+	}
 }
