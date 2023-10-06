@@ -70,17 +70,6 @@ func RandomCurrency() string {
 	return curr[rand.Intn(l)]
 }
 
-// RandomPassword generates a random hashed password.
-func RandomPassword() (string, error) {
-	password := RandomString(15)
-	hash, err := HashPassword(password)
-	if err != nil {
-		return "", err
-	}
-
-	return hash, nil
-}
-
 // RandomEmail generates a random email address.
 func RandomEmail() string {
 	username := RandomString(10)
