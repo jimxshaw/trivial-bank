@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	tl "github.com/jimxshaw/tracerlogger"
@@ -16,6 +17,15 @@ type createUserRequest struct {
 	Email     string `json:"email" binding:"required,email"`
 	Username  string `json:"username" binding:"required,alphanum,min=6"`
 	Password  string `json:"password" binding:"required"`
+}
+
+type createUserResponse struct {
+	FirstName         string    `json:"first_name"`
+	LastName          string    `json:"last_name"`
+	Email             string    `json:"email"`
+	Username          string    `json:"username"`
+	PasswordChangedAt time.Time `json:"password_changed_at"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 func (s *Server) createUser(ctx *gin.Context) {
@@ -67,5 +77,13 @@ func (s *Server) createUser(ctx *gin.Context) {
 		return
 	}
 
-	tl.RespondWithJSON(ctx.Writer, http.StatusOK, user)
+	res := createUserResponse{
+		FirstName:         user.FirstName,
+		LastName:          user.LastName,
+		Email:             user.Email,
+		PasswordChangedAt: user.PasswordChangedAt,
+		CreatedAt:         user.CreatedAt,
+	}
+
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, res)
 }
