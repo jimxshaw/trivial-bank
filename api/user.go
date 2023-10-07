@@ -15,7 +15,7 @@ type createUserRequest struct {
 	LastName  string `json:"last_name" binding:"required,alphanum"`
 	Email     string `json:"email" binding:"required,email"`
 	Username  string `json:"username" binding:"required,alphanum"`
-	Password  string `json:"password" binding:"required,min=8"`
+	Password  string `json:"password" binding:"required"`
 }
 
 func (s *Server) createUser(ctx *gin.Context) {
@@ -26,7 +26,18 @@ func (s *Server) createUser(ctx *gin.Context) {
 		return
 	}
 
-	// Password MUST be hashed.
+	// Password must be validated.
+	if !util.IsValidPassword(req.Password) {
+		errRes := tl.ResponseError{}
+		errRes.AddValidationError(
+			tl.CodeFieldsValidation,
+			"password",
+			util.PasswordValidationMessage,
+		)
+		tl.RespondWithError(ctx.Writer, http.StatusBadRequest, errRes)
+	}
+
+	// Password must be hashed.
 	hash, err := util.HashPassword(req.Password)
 	if err != nil {
 		errorResponse(tl.CodeInternalServerError, ctx.Writer)
