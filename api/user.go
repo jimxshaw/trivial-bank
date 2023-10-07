@@ -11,10 +11,10 @@ import (
 )
 
 type createUserRequest struct {
-	FirstName string `json:"first_name" binding:"required,alphanum"`
-	LastName  string `json:"last_name" binding:"required,alphanum"`
+	FirstName string `json:"first_name" binding:"required,min=2"`
+	LastName  string `json:"last_name" binding:"required,min=2"`
 	Email     string `json:"email" binding:"required,email"`
-	Username  string `json:"username" binding:"required,alphanum"`
+	Username  string `json:"username" binding:"required,alphanum,min=6"`
 	Password  string `json:"password" binding:"required"`
 }
 
@@ -22,7 +22,7 @@ func (s *Server) createUser(ctx *gin.Context) {
 	var req createUserRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		errorResponse(tl.CodeBadRequest, ctx.Writer)
+		tl.RespondWithError(ctx.Writer, http.StatusBadRequest, err)
 		return
 	}
 
@@ -35,6 +35,7 @@ func (s *Server) createUser(ctx *gin.Context) {
 			util.PasswordValidationMessage,
 		)
 		tl.RespondWithError(ctx.Writer, http.StatusBadRequest, errRes)
+		return
 	}
 
 	// Password must be hashed.
@@ -57,8 +58,8 @@ func (s *Server) createUser(ctx *gin.Context) {
 		if pqErr, ok := err.(*pq.Error); ok {
 			switch pqErr.Code.Name() {
 			case "unique_violation":
-				// Check if the username or the email already exists.
-				errorResponse(tl.CodeForbidden, ctx.Writer)
+				// Check if username or email already exists.
+				tl.RespondWithError(ctx.Writer, http.StatusForbidden, pqErr)
 				return
 			}
 		}
