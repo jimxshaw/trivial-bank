@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -17,12 +18,41 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+type eqCreateUserParamsMatcher struct {
+	params   db.CreateUserParams
+	password string // raw password
+}
+
+func (e eqCreateUserParamsMatcher) Matches(x interface{}) bool {
+	params, ok := x.(db.CreateUserParams)
+	if !ok {
+		return false
+	}
+
+	err := util.ComparePasswords(e.password, params.Password)
+	if err != nil {
+		return false
+	}
+
+	e.params.Password = params.Password
+
+	return reflect.DeepEqual(e.params, params)
+}
+
+func (e eqCreateUserParamsMatcher) String() string {
+	return fmt.Sprintf("matches params %v and password %v", e.params, e.password)
+}
+
+func EqCreateUserParams(params db.CreateUserParams, password string) gomock.Matcher {
+	return eqCreateUserParamsMatcher{params, password}
+}
+
 func TestUserAPI(t *testing.T) {
 	user, password := randomUser(t)
 
 	// Stubs.
-	callCreate := func(m *mockdb.MockStore, params db.CreateUserParams) *gomock.Call {
-		return m.EXPECT().CreateUser(gomock.Any(), params)
+	callCreate := func(m *mockdb.MockStore, params db.CreateUserParams, password string) *gomock.Call {
+		return m.EXPECT().CreateUser(gomock.Any(), EqCreateUserParams(params, password))
 	}
 
 	// Create User test cases.
@@ -47,10 +77,9 @@ func TestUserAPI(t *testing.T) {
 					LastName:  user.LastName,
 					Email:     user.Email,
 					Username:  user.Username,
-					Password:  user.Password,
 				}
 
-				callCreate(m, params).
+				callCreate(m, params, password).
 					Times(1).
 					Return(user, nil)
 			},
