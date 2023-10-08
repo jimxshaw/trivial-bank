@@ -15,6 +15,7 @@ import (
 	mockdb "github.com/jimxshaw/trivial-bank/db/mocks"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	"github.com/jimxshaw/trivial-bank/util"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -136,6 +137,31 @@ func TestUserAPI(t *testing.T) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+		{
+			name: "username or email already exists",
+			body: gin.H{
+				"first_name": user.FirstName,
+				"last_name":  user.LastName,
+				"email":      user.Email,    // Assuming duplicate email
+				"username":   user.Username, // or duplicate username or both.
+				"password":   password,
+			},
+			stubs: func(m *mockdb.MockStore) {
+				params := db.CreateUserParams{
+					FirstName: user.FirstName,
+					LastName:  user.LastName,
+					Email:     user.Email,
+					Username:  user.Username,
+				}
+
+				callCreate(m, params, password).
+					Times(1).
+					Return(db.User{}, &pq.Error{Code: "23505"}) // Postgres DB code for unique_violation.
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusForbidden, recorder.Code)
 			},
 		},
 	}
