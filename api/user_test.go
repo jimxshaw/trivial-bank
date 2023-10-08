@@ -121,6 +121,23 @@ func TestUserAPI(t *testing.T) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			},
 		},
+		{
+			name: "invalid body",
+			body: gin.H{
+				"first_name": "",
+				"last_name":  "",
+				"email":      "",
+				"username":   "",
+				"password":   "",
+			},
+			stubs: func(m *mockdb.MockStore) {
+				callCreate(m, db.CreateUserParams{}, "").
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
 	}
 
 	// Create User run test cases.
