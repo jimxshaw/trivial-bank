@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,11 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+/* Custom Matcher */
+// Using bcrypt, even if we hash the same password multiple times,
+// the output hash will be different every time due to the random salt.
+// This custom matcher (based on gomock's Matcher interface) resolves
+// mismatched hashed passwords during testing.
 type eqCreateUserParamsMatcher struct {
 	params   db.CreateUserParams
 	password string // raw password
@@ -47,6 +53,7 @@ func EqCreateUserParams(params db.CreateUserParams, password string) gomock.Matc
 	return eqCreateUserParamsMatcher{params, password}
 }
 
+/* Unit Tests */
 func TestUserAPI(t *testing.T) {
 	user, password := randomUser(t)
 
@@ -86,6 +93,32 @@ func TestUserAPI(t *testing.T) {
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchUser(t, recorder.Body, user)
+			},
+		},
+		{
+			name: "some error happened",
+			body: gin.H{
+				"first_name": user.FirstName,
+				"last_name":  user.LastName,
+				"email":      user.Email,
+				"username":   user.Username,
+				"password":   password,
+			},
+			stubs: func(m *mockdb.MockStore) {
+				params := db.CreateUserParams{
+					FirstName: user.FirstName,
+					LastName:  user.LastName,
+					Email:     user.Email,
+					Username:  user.Username,
+					Password:  user.Password,
+				}
+
+				callCreate(m, params, password).
+					Times(1).
+					Return(db.User{}, errors.New("some error"))
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			},
 		},
 	}
