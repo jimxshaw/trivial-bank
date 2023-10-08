@@ -164,6 +164,30 @@ func TestUserAPI(t *testing.T) {
 				require.Equal(t, http.StatusForbidden, recorder.Code)
 			},
 		},
+		{
+			name: "invalid password",
+			body: gin.H{
+				"first_name": user.FirstName,
+				"last_name":  user.LastName,
+				"email":      user.Email,
+				"username":   user.Username,
+				"password":   "test",
+			},
+			stubs: func(m *mockdb.MockStore) {
+				params := db.CreateUserParams{
+					FirstName: user.FirstName,
+					LastName:  user.LastName,
+					Email:     user.Email,
+					Username:  user.Username,
+				}
+
+				callCreate(m, params, password).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
 	}
 
 	// Create User run test cases.
