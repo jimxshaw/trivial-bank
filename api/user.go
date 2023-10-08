@@ -81,6 +81,7 @@ func (s *Server) createUser(ctx *gin.Context) {
 		FirstName:         user.FirstName,
 		LastName:          user.LastName,
 		Email:             user.Email,
+		Username:          user.Username,
 		PasswordChangedAt: user.PasswordChangedAt,
 		CreatedAt:         user.CreatedAt,
 	}
