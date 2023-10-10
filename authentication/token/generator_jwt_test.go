@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/jimxshaw/trivial-bank/util"
 	"github.com/stretchr/testify/require"
 )
@@ -43,6 +44,20 @@ func TestJWTGenerator(t *testing.T) {
 		payload, err := generator.ValidateToken(token)
 		require.Error(t, err)
 		require.EqualError(t, err, ErrExpiredToken.Error())
+		require.Nil(t, payload)
+	})
+
+	t.Run("invalid token, signing algorithm", func(t *testing.T) {
+		payload, err := NewPayload(util.RandomInt(1, 1000), time.Minute)
+		require.NoError(t, err)
+
+		token := jwt.NewWithClaims(jwt.SigningMethodNone, payload)
+		tkn, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
+		require.NoError(t, err)
+
+		payload, err = generator.ValidateToken(tkn)
+		require.Error(t, err)
+		require.EqualError(t, err, ErrInvalidToken.Error())
 		require.Nil(t, payload)
 	})
 }
