@@ -6,6 +6,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-playground/validator/v10 v10.15.4
+	github.com/google/uuid v1.3.1
 	github.com/jimxshaw/tracerlogger v0.0.0-20231006154250-427675c759e8
 	github.com/lib/pq v1.10.9
 	github.com/spf13/viper v1.16.0
