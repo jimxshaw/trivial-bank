@@ -60,4 +60,10 @@ func TestJWTGenerator(t *testing.T) {
 		require.EqualError(t, err, ErrInvalidToken.Error())
 		require.Nil(t, payload)
 	})
+
+	t.Run("invalid secret key", func(t *testing.T) {
+		generator, err := NewJWTGenerator(util.RandomString(10))
+		require.Error(t, err)
+		require.Nil(t, generator)
+	})
 }

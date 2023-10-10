@@ -17,7 +17,7 @@ type JWTGenerator struct {
 
 // NewJWTGenerator creates a new JWT Generator.
 func NewJWTGenerator(secretKey string) (Generator, error) {
-	if len(secretKey) > minSizeSecretKey {
+	if len(secretKey) < minSizeSecretKey {
 		return nil, fmt.Errorf("invalid key size: must be at least %d characters", minSizeSecretKey)
 	}
 	return &JWTGenerator{secretKey}, nil
