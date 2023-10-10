@@ -1,10 +1,13 @@
 package token
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+var ErrExpiredToken = errors.New("token has expired")
 
 // Payload is the token's payload data.
 type Payload struct {
@@ -29,4 +32,12 @@ func NewPayload(userID int64, duration time.Duration) (*Payload, error) {
 	}
 
 	return payload, nil
+}
+
+// Valid checks if the token is valid or not.
+func (p *Payload) Valid() error {
+	if time.Now().After(p.ExpiredAt) {
+		return ErrExpiredToken
+	}
+	return nil
 }
