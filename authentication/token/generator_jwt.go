@@ -8,6 +8,8 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+// https://github.com/golang-jwt/jwt
+
 const minSizeSecretKey = 48
 
 // JWTGenerator struct represents a JSON Web Token generator.
