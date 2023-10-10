@@ -45,4 +45,10 @@ func TestPasetoGenerator(t *testing.T) {
 		require.EqualError(t, err, ErrExpiredToken.Error())
 		require.Nil(t, payload)
 	})
+
+	t.Run("invalid symmetric key", func(t *testing.T) {
+		generator, err := NewPasetoGenerator(util.RandomString(10))
+		require.Error(t, err)
+		require.Nil(t, generator)
+	})
 }
