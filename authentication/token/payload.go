@@ -7,7 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
-var ErrExpiredToken = errors.New("token has expired")
+// Errors returned from ValidateToken method.
+var (
+	ErrExpiredToken = errors.New("token has expired")
+	ErrInvalidToken = errors.New("token is invalid")
+)
 
 // Payload is the token's payload data.
 type Payload struct {

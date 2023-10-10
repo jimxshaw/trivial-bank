@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -36,6 +37,31 @@ func (g *JWTGenerator) GenerateToken(userID int64, duration time.Duration) (stri
 
 // ValidateToken validates if the token is proper.
 func (g *JWTGenerator) ValidateToken(token string) (*Payload, error) {
-	// TODO: implement this method.
-	return nil, nil
+	keyFunc := func(token *jwt.Token) (interface{}, error) {
+		_, ok := token.Method.(*jwt.SigningMethodHMAC)
+		if !ok {
+			// The token's signing method does not
+			// match our signing method so it's invalid.
+			return nil, ErrInvalidToken
+		}
+		// This means the token's signing algorithm matches.
+		return []byte(g.secretKey), nil
+	}
+
+	tkn, err := jwt.ParseWithClaims(token, &Payload{}, keyFunc)
+	if err != nil {
+		// Must differentiate what kind of err is returned.
+		validationErr, ok := err.(*jwt.ValidationError)
+		if ok && errors.Is(validationErr.Inner, ErrExpiredToken) {
+			return nil, ErrExpiredToken
+		}
+		return nil, ErrInvalidToken
+	}
+
+	payload, ok := tkn.Claims.(*Payload)
+	if !ok {
+		return nil, ErrInvalidToken
+	}
+
+	return payload, nil
 }
