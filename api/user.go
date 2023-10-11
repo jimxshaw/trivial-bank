@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
@@ -19,13 +20,24 @@ type createUserRequest struct {
 	Password  string `json:"password" binding:"required"`
 }
 
-type createUserResponse struct {
+type userResponse struct {
 	FirstName         string    `json:"first_name"`
 	LastName          string    `json:"last_name"`
 	Email             string    `json:"email"`
 	Username          string    `json:"username"`
 	PasswordChangedAt time.Time `json:"password_changed_at"`
 	CreatedAt         time.Time `json:"created_at"`
+}
+
+func newUserResponse(user db.User) userResponse {
+	return userResponse{
+		FirstName:         user.FirstName,
+		LastName:          user.LastName,
+		Email:             user.Email,
+		Username:          user.Username,
+		PasswordChangedAt: user.PasswordChangedAt,
+		CreatedAt:         user.CreatedAt,
+	}
 }
 
 func (s *Server) createUser(ctx *gin.Context) {
@@ -77,13 +89,54 @@ func (s *Server) createUser(ctx *gin.Context) {
 		return
 	}
 
-	res := createUserResponse{
-		FirstName:         user.FirstName,
-		LastName:          user.LastName,
-		Email:             user.Email,
-		Username:          user.Username,
-		PasswordChangedAt: user.PasswordChangedAt,
-		CreatedAt:         user.CreatedAt,
+	res := newUserResponse(user)
+
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, res)
+}
+
+type loginUserRequest struct {
+	Username string `json:"username" binding:"required,alphanum,min=6"`
+	Password string `json:"password" binding:"required"`
+}
+
+type loginUserResponse struct {
+	AccessToken string       `json:"access_token"`
+	User        userResponse `json:"user"`
+}
+
+func (s *Server) loginUser(ctx *gin.Context) {
+	var req loginUserRequest
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
+		return
+	}
+
+	user, err := s.store.GetUser(ctx, req.Username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			errorResponse(tl.CodeNotFound, ctx.Writer)
+			return
+		}
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
+		return
+	}
+
+	err = util.ComparePasswords(req.Password, user.Password)
+	if err != nil {
+		errorResponse(tl.CodeUnauthorized, ctx.Writer)
+		return
+	}
+
+	accessToken, err := s.tokenGenerator.GenerateToken(user.ID, s.config.AccessTokenDuration)
+	if err != nil {
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
+		return
+	}
+
+	res := loginUserResponse{
+		AccessToken: accessToken,
+		User:        newUserResponse(user),
 	}
 
 	tl.RespondWithJSON(ctx.Writer, http.StatusOK, res)

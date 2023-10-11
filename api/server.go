@@ -35,15 +35,31 @@ func NewServer(store db.Store, config util.Config) (*Server, error) {
 		tokenGenerator: tokenGenerator,
 	}
 
-	r := gin.Default()
-
-	/* Middlewares */
-	r.Use(mw.GinAdapter(tracer.TraceMiddleware()))
-
 	/* Validators */
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("currency", validCurrency)
 	}
+
+	s.setupRouter()
+
+	return s, nil
+}
+
+// Start runs the HTTP server on the input address.
+func (s *Server) Start(address string) error {
+	// TODO: Add graceful shutdown logic.
+	return s.router.Run(address)
+}
+
+func (s *Server) healthCheck(ctx *gin.Context) {
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, gin.H{"status": "UP"})
+}
+
+func (s *Server) setupRouter() {
+	r := gin.Default()
+
+	/* Middlewares */
+	r.Use(mw.GinAdapter(tracer.TraceMiddleware()))
 
 	/* Routes */
 	// Health check
@@ -67,20 +83,9 @@ func NewServer(store db.Store, config util.Config) (*Server, error) {
 
 	// Users
 	r.POST("/users", s.createUser)
+	r.POST("/users/login", s.loginUser)
 
 	s.router = r
-
-	return s, nil
-}
-
-// Start runs the HTTP server on the input address.
-func (s *Server) Start(address string) error {
-	// TODO: Add graceful shutdown logic.
-	return s.router.Run(address)
-}
-
-func (s *Server) healthCheck(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{"status": "UP"})
 }
 
 // errorResponse has common response for handler errors.
@@ -101,5 +106,7 @@ func errorResponse(err error, w http.ResponseWriter) {
 		errRes.Respond(w, http.StatusForbidden, nil)
 	case tl.CodeNotFound:
 		errRes.Respond(w, http.StatusNotFound, nil)
+	case tl.CodeUnauthorized:
+		errRes.Respond(w, http.StatusUnauthorized, nil)
 	}
 }
