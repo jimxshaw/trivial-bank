@@ -108,29 +108,29 @@ func (s *Server) loginUser(ctx *gin.Context) {
 	var req loginUserRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		tl.RespondWithJSON(ctx.Writer, http.StatusBadRequest, err)
+		errorResponse(tl.CodeBadRequest, ctx.Writer)
 		return
 	}
 
 	user, err := s.store.GetUser(ctx, req.Username)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			tl.RespondWithJSON(ctx.Writer, http.StatusNotFound, err)
+			errorResponse(tl.CodeNotFound, ctx.Writer)
 			return
 		}
-		tl.RespondWithJSON(ctx.Writer, http.StatusInternalServerError, err)
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
 	err = util.ComparePasswords(req.Password, user.Password)
 	if err != nil {
-		tl.RespondWithJSON(ctx.Writer, http.StatusUnauthorized, err)
+		errorResponse(tl.CodeUnauthorized, ctx.Writer)
 		return
 	}
 
 	accessToken, err := s.tokenGenerator.GenerateToken(user.ID, s.config.AccessTokenDuration)
 	if err != nil {
-		tl.RespondWithJSON(ctx.Writer, http.StatusInternalServerError, err)
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
 		return
 	}
 
