@@ -19,13 +19,24 @@ type createUserRequest struct {
 	Password  string `json:"password" binding:"required"`
 }
 
-type createUserResponse struct {
+type userResponse struct {
 	FirstName         string    `json:"first_name"`
 	LastName          string    `json:"last_name"`
 	Email             string    `json:"email"`
 	Username          string    `json:"username"`
 	PasswordChangedAt time.Time `json:"password_changed_at"`
 	CreatedAt         time.Time `json:"created_at"`
+}
+
+func newUserResponse(user db.User) userResponse {
+	return userResponse{
+		FirstName:         user.FirstName,
+		LastName:          user.LastName,
+		Email:             user.Email,
+		Username:          user.Username,
+		PasswordChangedAt: user.PasswordChangedAt,
+		CreatedAt:         user.CreatedAt,
+	}
 }
 
 func (s *Server) createUser(ctx *gin.Context) {
@@ -77,14 +88,17 @@ func (s *Server) createUser(ctx *gin.Context) {
 		return
 	}
 
-	res := createUserResponse{
-		FirstName:         user.FirstName,
-		LastName:          user.LastName,
-		Email:             user.Email,
-		Username:          user.Username,
-		PasswordChangedAt: user.PasswordChangedAt,
-		CreatedAt:         user.CreatedAt,
-	}
+	res := newUserResponse(user)
 
 	tl.RespondWithJSON(ctx.Writer, http.StatusOK, res)
+}
+
+type loginUserRequest struct {
+	Username string `json:"username" binding:"required,alphanum,min=6"`
+	Password string `json:"password" binding:"required"`
+}
+
+type loginUserResponse struct {
+	AccessToken string       `json:"access_token"`
+	User        userResponse `json:"user"`
 }
