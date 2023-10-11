@@ -23,7 +23,13 @@ func main() {
 	}
 
 	store := db.NewStore(conn)
-	server := api.NewServer(store)
+
+	server, err := api.NewServer(store, c)
+	if err != nil {
+		if err != nil {
+			log.Fatal("failed to instantiate new server:", err)
+		}
+	}
 
 	err = server.Start(c.ServerAddress)
 	if err != nil {

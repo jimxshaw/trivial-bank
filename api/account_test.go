@@ -19,19 +19,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func newServerMock(m *mockdb.MockStore) *Server {
-	return NewServer(m)
-}
-
-func newStoreMock(t *testing.T) (func(), *mockdb.MockStore) {
-	ctrl := gomock.NewController(t)
-	finish := func() {
-		ctrl.Finish()
-	}
-	store := mockdb.NewMockStore(ctrl)
-	return finish, store
-}
-
 func TestAccountAPI(t *testing.T) {
 	account := randomAccount()
 
@@ -79,20 +66,20 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(accounts, nil)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, nil)
+			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			query := request.URL.Query()
+			query := req.URL.Query()
 			query.Add("page_id", "1")
 			query.Add("page_size", "5")
-			request.URL.RawQuery = query.Encode()
+			req.URL.RawQuery = query.Encode()
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusOK, recorder.Code)
+			require.Equal(t, http.StatusOK, rec.Code)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -103,20 +90,20 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return([]db.Account{}, errors.New("some error"))
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, nil)
+			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			query := request.URL.Query()
+			query := req.URL.Query()
 			query.Add("page_id", "1")
 			query.Add("page_size", "5")
-			request.URL.RawQuery = query.Encode()
+			req.URL.RawQuery = query.Encode()
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			require.Equal(t, http.StatusInternalServerError, rec.Code)
 		})
 
 		t.Run("invalid query parameters", func(t *testing.T) {
@@ -126,15 +113,15 @@ func TestAccountAPI(t *testing.T) {
 			callList(m, db.ListAccountsParams{Limit: 0, Offset: 0}).
 				Times(0)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, "/accounts?page_id=0&page_size=0", nil)
+			req, err := http.NewRequest(method, "/accounts?page_id=0&page_size=0", nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
 		})
 	})
 
@@ -151,16 +138,16 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(account, nil)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, nil)
+			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusOK, recorder.Code)
-			requireBodyMatchAccount(t, recorder.Body, account)
+			require.Equal(t, http.StatusOK, rec.Code)
+			requireBodyMatchAccount(t, rec.Body, account)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -171,16 +158,16 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(db.Account{}, errors.New("some error"))
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, nil)
+			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusInternalServerError, recorder.Code)
-			requireBodyMatchAccount(t, recorder.Body, db.Account{})
+			require.Equal(t, http.StatusInternalServerError, rec.Code)
+			requireBodyMatchAccount(t, rec.Body, db.Account{})
 		})
 
 		t.Run("invalid ID", func(t *testing.T) {
@@ -192,15 +179,15 @@ func TestAccountAPI(t *testing.T) {
 			callGet(m, invalidID).
 				Times(0)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
+			req, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
 		})
 
 		t.Run("not found", func(t *testing.T) {
@@ -211,15 +198,15 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(db.Account{}, sql.ErrNoRows)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, nil)
+			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusNotFound, recorder.Code)
+			require.Equal(t, http.StatusNotFound, rec.Code)
 		})
 	})
 
@@ -250,18 +237,18 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(newAccount, nil)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
 			require.NoError(t, err)
 
-			request.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", "application/json")
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusOK, recorder.Code)
-			requireBodyMatchAccount(t, recorder.Body, newAccount)
+			require.Equal(t, http.StatusOK, rec.Code)
+			requireBodyMatchAccount(t, rec.Body, newAccount)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -272,18 +259,18 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(db.Account{}, errors.New("some error"))
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
 			require.NoError(t, err)
 
-			request.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", "application/json")
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusInternalServerError, recorder.Code)
-			requireBodyMatchAccount(t, recorder.Body, db.Account{})
+			require.Equal(t, http.StatusInternalServerError, rec.Code)
+			requireBodyMatchAccount(t, rec.Body, db.Account{})
 		})
 
 		t.Run("invalid JSON payload", func(t *testing.T) {
@@ -293,17 +280,17 @@ func TestAccountAPI(t *testing.T) {
 			callCreate(m, db.CreateAccountParams{}).
 				Times(0)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(`{}`)))
+			req, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(`{}`)))
 			require.NoError(t, err)
 
-			request.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", "application/json")
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
 		})
 	})
 
@@ -336,18 +323,18 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(accountToUpdate, nil)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
 			require.NoError(t, err)
 
-			request.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", "application/json")
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusOK, recorder.Code)
-			requireBodyMatchAccount(t, recorder.Body, accountToUpdate)
+			require.Equal(t, http.StatusOK, rec.Code)
+			requireBodyMatchAccount(t, rec.Body, accountToUpdate)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -358,18 +345,18 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(db.Account{}, errors.New("some error"))
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
 			require.NoError(t, err)
 
-			request.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", "application/json")
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusInternalServerError, recorder.Code)
-			requireBodyMatchAccount(t, recorder.Body, db.Account{})
+			require.Equal(t, http.StatusInternalServerError, rec.Code)
+			requireBodyMatchAccount(t, rec.Body, db.Account{})
 		})
 
 		t.Run("invalid ID", func(t *testing.T) {
@@ -379,17 +366,17 @@ func TestAccountAPI(t *testing.T) {
 			callUpdate(m, params).
 				Times(0)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, "/accounts/hello", bytes.NewBuffer(jsonStr))
+			req, err := http.NewRequest(method, "/accounts/hello", bytes.NewBuffer(jsonStr))
 			require.NoError(t, err)
 
-			request.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", "application/json")
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
 		})
 
 		t.Run("invalid JSON payload", func(t *testing.T) {
@@ -399,17 +386,17 @@ func TestAccountAPI(t *testing.T) {
 			callUpdate(m, db.UpdateAccountParams{}).
 				Times(0)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(`{}`)))
+			req, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(`{}`)))
 			require.NoError(t, err)
 
-			request.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", "application/json")
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
 		})
 	})
 
@@ -426,15 +413,15 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(nil)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, nil)
+			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusOK, recorder.Code)
+			require.Equal(t, http.StatusOK, rec.Code)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -445,15 +432,15 @@ func TestAccountAPI(t *testing.T) {
 				Times(1).
 				Return(errors.New("some error"))
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, url, nil)
+			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			require.Equal(t, http.StatusInternalServerError, rec.Code)
 		})
 
 		t.Run("invalid ID", func(t *testing.T) {
@@ -465,15 +452,15 @@ func TestAccountAPI(t *testing.T) {
 			callDelete(m, invalidID).
 				Times(0)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
+			req, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
 		})
 	})
 }
