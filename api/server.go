@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,18 +9,32 @@ import (
 	"github.com/go-playground/validator/v10"
 	tl "github.com/jimxshaw/tracerlogger"
 	"github.com/jimxshaw/tracerlogger/tracer"
+	"github.com/jimxshaw/trivial-bank/authentication/token"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
+	"github.com/jimxshaw/trivial-bank/util"
 	mw "github.com/jimxshaw/trivial-bank/util/middleware"
 )
 
 // Server serves HTTP requests for our application.
 type Server struct {
-	store  db.Store
-	router *gin.Engine
+	store          db.Store
+	config         util.Config
+	tokenGenerator token.Generator
+	router         *gin.Engine
 }
 
-func NewServer(store db.Store) *Server {
-	s := &Server{store: store}
+func NewServer(store db.Store, config util.Config) (*Server, error) {
+	tokenGenerator, err := token.NewPasetoGenerator(config.TokenSymmetricKey)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create token generator %w", err)
+	}
+
+	s := &Server{
+		store:          store,
+		config:         config,
+		tokenGenerator: tokenGenerator,
+	}
+
 	r := gin.Default()
 
 	/* Middlewares */
@@ -55,7 +70,7 @@ func NewServer(store db.Store) *Server {
 
 	s.router = r
 
-	return s
+	return s, nil
 }
 
 // Start runs the HTTP server on the input address.
