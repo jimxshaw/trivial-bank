@@ -106,5 +106,7 @@ func errorResponse(err error, w http.ResponseWriter) {
 		errRes.Respond(w, http.StatusForbidden, nil)
 	case tl.CodeNotFound:
 		errRes.Respond(w, http.StatusNotFound, nil)
+	case tl.CodeUnauthorized:
+		errRes.Respond(w, http.StatusUnauthorized, nil)
 	}
 }
