@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
@@ -101,4 +102,42 @@ type loginUserRequest struct {
 type loginUserResponse struct {
 	AccessToken string       `json:"access_token"`
 	User        userResponse `json:"user"`
+}
+
+func (s *Server) loginUser(ctx *gin.Context) {
+	var req loginUserRequest
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		tl.RespondWithJSON(ctx.Writer, http.StatusBadRequest, err)
+		return
+	}
+
+	user, err := s.store.GetUser(ctx, req.Username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			tl.RespondWithJSON(ctx.Writer, http.StatusNotFound, err)
+			return
+		}
+		tl.RespondWithJSON(ctx.Writer, http.StatusInternalServerError, err)
+		return
+	}
+
+	err = util.ComparePasswords(req.Password, user.Password)
+	if err != nil {
+		tl.RespondWithJSON(ctx.Writer, http.StatusUnauthorized, err)
+		return
+	}
+
+	accessToken, err := s.tokenGenerator.GenerateToken(user.ID, s.config.AccessTokenDuration)
+	if err != nil {
+		tl.RespondWithJSON(ctx.Writer, http.StatusInternalServerError, err)
+		return
+	}
+
+	res := loginUserResponse{
+		AccessToken: accessToken,
+		User:        newUserResponse(user),
+	}
+
+	tl.RespondWithJSON(ctx.Writer, http.StatusOK, res)
 }
