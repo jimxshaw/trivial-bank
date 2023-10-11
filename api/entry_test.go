@@ -109,16 +109,16 @@ func TestEntryAPI(t *testing.T) {
 
 			tc.stubs(m)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
 			url := fmt.Sprintf("/entries?page_id=%d&page_size=%d", tc.pageID, tc.pageSize)
-			request, err := http.NewRequest(http.MethodGet, url, nil)
+			req, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			tc.checkResponse(t, recorder)
+			tc.checkResponse(t, rec)
 		})
 	}
 
@@ -189,16 +189,16 @@ func TestEntryAPI(t *testing.T) {
 
 			tc.stubs(m)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
 			url := fmt.Sprintf("/entries/%d", tc.entryID)
-			request, err := http.NewRequest(http.MethodGet, url, nil)
+			req, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			tc.checkResponse(t, recorder)
+			tc.checkResponse(t, rec)
 		})
 	}
 

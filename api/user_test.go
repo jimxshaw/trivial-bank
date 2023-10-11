@@ -200,7 +200,7 @@ func TestUserAPI(t *testing.T) {
 
 			tc.stubs(m)
 
-			server := newServerMock(m)
+			s := newServerMock(t, m)
 			recorder := httptest.NewRecorder()
 
 			data, err := json.Marshal(tc.body)
@@ -210,7 +210,7 @@ func TestUserAPI(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(recorder, request)
 
 			tc.checkResponse(t, recorder)
 		})

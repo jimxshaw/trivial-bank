@@ -161,16 +161,16 @@ func TestTransferAPI(t *testing.T) {
 
 			tc.stubs(m)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
 			url := fmt.Sprintf("/transfers?page_id=%d&page_size=%d", tc.pageID, tc.pageSize)
-			request, err := http.NewRequest(http.MethodGet, url, nil)
+			req, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			tc.checkResponse(t, recorder)
+			tc.checkResponse(t, rec)
 		})
 	}
 
@@ -241,16 +241,16 @@ func TestTransferAPI(t *testing.T) {
 
 			tc.stubs(m)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
 			url := fmt.Sprintf("/transfers/%d", tc.transferID)
-			request, err := http.NewRequest(http.MethodGet, url, nil)
+			req, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			tc.checkResponse(t, recorder)
+			tc.checkResponse(t, rec)
 		})
 	}
 
@@ -401,15 +401,15 @@ func TestTransferAPI(t *testing.T) {
 
 			tc.stubs(m)
 
-			server := newServerMock(m)
-			recorder := httptest.NewRecorder()
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
 
-			request, err := http.NewRequest(http.MethodPost, "/transfers", bytes.NewBuffer(tc.body))
+			req, err := http.NewRequest(http.MethodPost, "/transfers", bytes.NewBuffer(tc.body))
 			require.NoError(t, err)
 
-			server.router.ServeHTTP(recorder, request)
+			s.router.ServeHTTP(rec, req)
 
-			tc.checkResponse(t, recorder)
+			tc.checkResponse(t, rec)
 		})
 	}
 
