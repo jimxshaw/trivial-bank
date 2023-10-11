@@ -67,6 +67,7 @@ func NewServer(store db.Store, config util.Config) (*Server, error) {
 
 	// Users
 	r.POST("/users", s.createUser)
+	r.POST("/users/login", s.loginUser)
 
 	s.router = r
 
