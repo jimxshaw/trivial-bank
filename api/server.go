@@ -62,11 +62,11 @@ func (s *Server) setupRouter() {
 	// Tracer will be applied to all routes.
 	r.Use(mw.GinAdapter(tracer.TraceMiddleware()))
 
-	// Non-auth routes.
+	// Non-authentication routes.
 	r.POST("/users", s.createUser)
 	r.POST("/users/login", s.loginUser)
 
-	// Auth routes.
+	// Authentication routes.
 	authRoutes := r.Group("/")
 	authRoutes.Use(mw.GinAdapter(auth.AuthMiddleware(s.tokenGenerator)))
 
