@@ -9,10 +9,12 @@ import (
 	"github.com/jimxshaw/trivial-bank/authentication/token"
 )
 
+type contextKey string
+
 const (
-	authHeaderKey  = "authorization"
-	authTypeBearer = "bearer"
-	authPayloadKey = "authorization_payload"
+	authHeaderKey  string     = "authorization"
+	authTypeBearer string     = "bearer"
+	authPayloadKey contextKey = "authorization_payload"
 )
 
 func AuthMiddleware(tokenGenerator token.Generator) func(next http.Handler) http.Handler {
