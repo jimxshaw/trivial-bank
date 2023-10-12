@@ -14,7 +14,7 @@ type contextKey string
 const (
 	authHeaderKey  string     = "authorization"
 	authTypeBearer string     = "bearer"
-	authPayloadKey contextKey = "authorization_payload"
+	AuthPayloadKey contextKey = "authorization_payload"
 )
 
 func AuthMiddleware(tokenGenerator token.Generator) func(next http.Handler) http.Handler {
@@ -49,7 +49,7 @@ func AuthMiddleware(tokenGenerator token.Generator) func(next http.Handler) http
 			}
 
 			// Store the payload in the request's context
-			ctx := context.WithValue(r.Context(), authPayloadKey, payload)
+			ctx := context.WithValue(r.Context(), AuthPayloadKey, payload)
 			r = r.WithContext(ctx)
 
 			// Move to the next handler.

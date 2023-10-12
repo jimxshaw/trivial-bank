@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	tl "github.com/jimxshaw/tracerlogger"
+	auth "github.com/jimxshaw/trivial-bank/authentication/middleware"
+	"github.com/jimxshaw/trivial-bank/authentication/token"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	"github.com/lib/pq"
 )
@@ -24,7 +26,6 @@ type getAccountRequest struct {
 
 type createAccountRequest struct {
 	// https://pkg.go.dev/github.com/go-playground/validator/v10
-	UserID int64 `json:"user_id" binding:"required"`
 	// Custom validation called currency registered in server.go.
 	Currency string `json:"currency" binding:"required,currency"`
 }
@@ -90,8 +91,14 @@ func (s *Server) createAccount(ctx *gin.Context) {
 		return
 	}
 
+	// Retrieve the "payload" stored in the context by a certain key.
+	// Then use type assertion to assert that the value is
+	// a pointer to our defined Payload struct.
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
 	params := db.CreateAccountParams{
-		UserID:   req.UserID,
+		// Authorization Rule: users can only create accounts for themselves.
+		UserID:   authPayload.UserID,
 		Currency: req.Currency,
 		Balance:  0,
 	}
