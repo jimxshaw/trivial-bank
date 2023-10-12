@@ -2,11 +2,14 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	tl "github.com/jimxshaw/tracerlogger"
+	auth "github.com/jimxshaw/trivial-bank/authentication/middleware"
+	"github.com/jimxshaw/trivial-bank/authentication/token"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 )
 
@@ -78,11 +81,22 @@ func (s *Server) createTransfer(ctx *gin.Context) {
 		return
 	}
 
-	if !s.isValidAccount(ctx, req.FromAccountID, req.Currency) {
+	fromAccount, isValid := s.isValidAccount(ctx, req.FromAccountID, req.Currency)
+	if !isValid {
 		return
 	}
 
-	if !s.isValidAccount(ctx, req.ToAccountID, req.Currency) {
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
+	// Authorization Rule: users may only send money from their own accounts.
+	if fromAccount.UserID != authPayload.UserID {
+		err := errors.New("from account does not belong to the authenticated user")
+		tl.RespondWithError(ctx.Writer, http.StatusUnauthorized, err)
+		return
+	}
+
+	_, isValid = s.isValidAccount(ctx, req.ToAccountID, req.Currency)
+	if !isValid {
 		return
 	}
 
@@ -101,24 +115,24 @@ func (s *Server) createTransfer(ctx *gin.Context) {
 	tl.RespondWithJSON(ctx.Writer, http.StatusOK, result)
 }
 
-func (s *Server) isValidAccount(ctx *gin.Context, accountID int64, currency string) bool {
+func (s *Server) isValidAccount(ctx *gin.Context, accountID int64, currency string) (db.Account, bool) {
 	account, err := s.store.GetAccount(ctx, accountID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			errorResponse(tl.CodeNotFound, ctx.Writer)
-			return false
+			return account, false
 		}
 
 		errorResponse(tl.CodeInternalServerError, ctx.Writer)
-		return false
+		return account, false
 	}
 
 	if account.Currency != currency {
 		err := fmt.Errorf("account [%d] currency mismatch: %s vs %s", account.ID, account.Currency, currency)
 		errRes := tl.ResponseError{}
 		errRes.Respond(ctx.Writer, http.StatusBadRequest, err)
-		return false
+		return account, false
 	}
 
-	return true
+	return account, true
 }
