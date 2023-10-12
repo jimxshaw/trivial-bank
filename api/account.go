@@ -48,7 +48,11 @@ func (s *Server) listAccounts(ctx *gin.Context) {
 		return
 	}
 
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
 	params := db.ListAccountsParams{
+		// Authorization Rule: users may only retrieve their own list of accounts.
+		UserID: authPayload.UserID,
 		Limit:  req.PageSize,
 		Offset: (req.PageID - 1) * req.PageSize,
 	}
