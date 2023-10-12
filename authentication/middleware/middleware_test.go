@@ -100,7 +100,7 @@ func TestAuthMiddleware(t *testing.T) {
 		tc := testCasesAuthMiddleware[i]
 
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := http.NewRequest("GET", "/", nil)
+			req, err := http.NewRequest("GET", "/auth", nil)
 			require.NoError(t, err)
 
 			if tc.givenToken != "" || tc.givenAuthType != "" {
