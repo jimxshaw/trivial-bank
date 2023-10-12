@@ -59,37 +59,35 @@ func (s *Server) healthCheck(ctx *gin.Context) {
 func (s *Server) setupRouter() {
 	r := gin.Default()
 
-	/* Middlewares */
-	chainedMiddlewares := mw.Chain(
-		tracer.TraceMiddleware(),
-		auth.AuthMiddleware(s.tokenGenerator),
-	)
+	// Tracer will be applied to all routes.
+	r.Use(mw.GinAdapter(tracer.TraceMiddleware()))
 
-	r.Use(mw.GinAdapter(chainedMiddlewares))
-
-	/* Routes */
-	// Health check
-	r.GET("/health", s.healthCheck)
-
-	// Accounts
-	r.GET("/accounts", s.listAccounts)
-	r.GET("/accounts/:id", s.getAccount)
-	r.POST("/accounts", s.createAccount)
-	r.PUT("/accounts/:id", s.updateAccount)
-	r.DELETE("/accounts/:id", s.deleteAccount)
-
-	// Entries
-	r.GET("/entries", s.listEntries)
-	r.GET("/entries/:id", s.getEntry)
-
-	// Transfers
-	r.GET("/transfers", s.listTransfers)
-	r.GET("/transfers/:id", s.getTransfer)
-	r.POST("/transfers", s.createTransfer)
-
-	// Users
+	// Non-auth routes.
 	r.POST("/users", s.createUser)
 	r.POST("/users/login", s.loginUser)
+
+	// Auth routes.
+	authRoutes := r.Group("/")
+	authRoutes.Use(mw.GinAdapter(auth.AuthMiddleware(s.tokenGenerator)))
+
+	// Health check
+	authRoutes.GET("/health", s.healthCheck)
+
+	// Accounts
+	authRoutes.GET("/accounts", s.listAccounts)
+	authRoutes.GET("/accounts/:id", s.getAccount)
+	authRoutes.POST("/accounts", s.createAccount)
+	authRoutes.PUT("/accounts/:id", s.updateAccount)
+	authRoutes.DELETE("/accounts/:id", s.deleteAccount)
+
+	// Entries
+	authRoutes.GET("/entries", s.listEntries)
+	authRoutes.GET("/entries/:id", s.getEntry)
+
+	// Transfers
+	authRoutes.GET("/transfers", s.listTransfers)
+	authRoutes.GET("/transfers/:id", s.getTransfer)
+	authRoutes.POST("/transfers", s.createTransfer)
 
 	s.router = r
 }
