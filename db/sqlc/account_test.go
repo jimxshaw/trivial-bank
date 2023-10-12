@@ -60,8 +60,8 @@ func TestListAccounts(t *testing.T) {
 
 	params := ListAccountsParams{
 		UserID: expectedAccounts[9].UserID,
-		Limit:  1,
-		Offset: 1,
+		Limit:  5,
+		Offset: 0,
 	}
 
 	rows := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"})
@@ -73,9 +73,12 @@ func TestListAccounts(t *testing.T) {
 
 	accounts, err := testQueries.ListAccounts(context.Background(), params)
 	require.NoError(t, err)
-	require.Len(t, accounts, 1)
+	require.NotEmpty(t, accounts)
 
-	require.NotEmpty(t, accounts[0])
+	for _, account := range accounts {
+		require.NotEmpty(t, account)
+		require.Equal(t, expectedAccounts[9].UserID, account.UserID)
+	}
 }
 
 func TestUpdateAccount(t *testing.T) {
