@@ -23,8 +23,7 @@ func TestAccountAPI(t *testing.T) {
 	account := randomAccount()
 
 	accounts := []db.Account{
-		randomAccount(),
-		randomAccount(),
+		account,
 	}
 
 	// Stubs.
@@ -54,6 +53,7 @@ func TestAccountAPI(t *testing.T) {
 		method := http.MethodGet
 
 		params := db.ListAccountsParams{
+			UserID: account.UserID,
 			Limit:  5,
 			Offset: 0,
 		}
