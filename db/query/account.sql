@@ -20,9 +20,10 @@ WHERE id = $1 LIMIT 1 FOR NO KEY UPDATE;
 -- name: ListAccounts :many
 SELECT * 
 FROM accounts
+WHERE user_id = $1
 ORDER BY id
-LIMIT $1
-OFFSET $2;
+LIMIT $2
+OFFSET $3;
 
 -- name: UpdateAccount :one
 UPDATE accounts

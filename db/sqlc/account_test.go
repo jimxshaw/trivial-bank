@@ -52,12 +52,14 @@ func TestListAccounts(t *testing.T) {
 	query := `
 		SELECT id, user_id, balance, currency, created_at 
 		FROM accounts
+		WHERE user_id = $1
 		ORDER BY id
-		LIMIT $1
-		OFFSET $2
+		LIMIT $2
+		OFFSET $3
 	`
 
 	params := ListAccountsParams{
+		UserID: 5,
 		Limit:  5,
 		Offset: 5,
 	}
@@ -68,7 +70,7 @@ func TestListAccounts(t *testing.T) {
 	}
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(params.Limit, params.Offset).
+		WithArgs(params.UserID, params.Limit, params.Offset).
 		WillReturnRows(rows)
 
 	accounts, err := testQueries.ListAccounts(context.Background(), params)
