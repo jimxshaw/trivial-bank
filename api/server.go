@@ -9,6 +9,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	tl "github.com/jimxshaw/tracerlogger"
 	"github.com/jimxshaw/tracerlogger/tracer"
+	auth "github.com/jimxshaw/trivial-bank/authentication/middleware"
 	"github.com/jimxshaw/trivial-bank/authentication/token"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	"github.com/jimxshaw/trivial-bank/util"
@@ -59,7 +60,12 @@ func (s *Server) setupRouter() {
 	r := gin.Default()
 
 	/* Middlewares */
-	r.Use(mw.GinAdapter(tracer.TraceMiddleware()))
+	chainedMiddlewares := mw.Chain(
+		tracer.TraceMiddleware(),
+		auth.AuthMiddleware(s.tokenGenerator),
+	)
+
+	r.Use(mw.GinAdapter(chainedMiddlewares))
 
 	/* Routes */
 	// Health check
