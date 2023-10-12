@@ -107,7 +107,7 @@ func TestAuthMiddleware(t *testing.T) {
 				req.Header.Add(authHeaderKey, fmt.Sprintf("%s %s", tc.givenAuthType, tc.givenToken))
 			}
 
-			rr := httptest.NewRecorder()
+			rec := httptest.NewRecorder()
 
 			mw := AuthMiddleware(tc.tokenGenerator)
 
@@ -116,10 +116,10 @@ func TestAuthMiddleware(t *testing.T) {
 				fmt.Fprint(w, "next-handler-response")
 			})
 
-			mw(nextHandler).ServeHTTP(rr, req)
+			mw(nextHandler).ServeHTTP(rec, req)
 
-			require.Equal(t, tc.expectedStatus, rr.Code)
-			require.Equal(t, tc.expectedBody, rr.Body.String())
+			require.Equal(t, tc.expectedStatus, rec.Code)
+			require.Equal(t, tc.expectedBody, rec.Body.String())
 		})
 	}
 }
