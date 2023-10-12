@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -80,6 +81,15 @@ func (s *Server) getAccount(ctx *gin.Context) {
 		return
 	}
 
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
+	// Authorization Rule: users may only retrieve their own account.
+	if account.UserID != authPayload.UserID {
+		err := errors.New("account does not belong to the authenticated user")
+		tl.RespondWithError(ctx.Writer, http.StatusUnauthorized, err)
+		return
+	}
+
 	tl.RespondWithJSON(ctx.Writer, http.StatusOK, account)
 }
 
@@ -97,7 +107,7 @@ func (s *Server) createAccount(ctx *gin.Context) {
 	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
 
 	params := db.CreateAccountParams{
-		// Authorization Rule: users can only create accounts for themselves.
+		// Authorization Rule: users may only create accounts for themselves.
 		UserID:   authPayload.UserID,
 		Currency: req.Currency,
 		Balance:  0,
