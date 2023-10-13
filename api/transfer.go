@@ -37,7 +37,12 @@ func (s *Server) listTransfers(ctx *gin.Context) {
 		return
 	}
 
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
+	// Authorization Rule: users may get a list of transfers only if their account
+	// is involved as the sender or as the receiver of funds.
 	params := db.ListTransfersParams{
+		UserID: authPayload.UserID,
 		Limit:  req.PageSize,
 		Offset: (req.PageID - 1) * req.PageSize,
 	}

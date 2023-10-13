@@ -25,8 +25,20 @@ func TestTransferAPI(t *testing.T) {
 	transfer := randomTransfer()
 
 	transfers := []db.Transfer{
-		randomTransfer(),
-		randomTransfer(),
+		{
+			ID:            1,
+			FromAccountID: 1,
+			ToAccountID:   2,
+			Amount:        100,
+			CreatedAt:     time.Now(),
+		},
+		{
+			ID:            2,
+			FromAccountID: 2,
+			ToAccountID:   1,
+			Amount:        200,
+			CreatedAt:     time.Now(),
+		},
 	}
 
 	fromAccount := db.Account{

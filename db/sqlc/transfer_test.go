@@ -60,20 +60,28 @@ func TestListTransfers(t *testing.T) {
 		},
 	}
 
+	account := Account{
+		ID:        1,
+		UserID:    1,
+		Balance:   10000,
+		Currency:  "USD",
+		CreatedAt: time.Now(),
+	}
+
 	query := `
-		SELECT id, from_account_id, to_account_id, amount, created_at 
-		FROM transfers
-		WHERE (from_account_id = $1 OR to_account_id = $2)
-		ORDER BY id
-		LIMIT $3
-		OFFSET $4
+		SELECT t.id, t.from_account_id, t.to_account_id, t.amount, t.created_at 
+		FROM transfers AS t
+		JOIN accounts AS a1 ON t.from_account_id = a1.id
+		JOIN accounts AS a2 ON t.to_account_id = a2.id
+		WHERE (a1.user_id = $1 OR a2.user_id = $1)
+		LIMIT $2 
+		OFFSET $3
 	`
 
 	params := ListTransfersParams{
-		FromAccountID: expectedTransfers[0].FromAccountID,
-		ToAccountID:   expectedTransfers[1].ToAccountID,
-		Limit:         5,
-		Offset:        0,
+		UserID: account.UserID,
+		Limit:  5,
+		Offset: 0,
 	}
 
 	rows := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"})
@@ -82,7 +90,7 @@ func TestListTransfers(t *testing.T) {
 	}
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(params.FromAccountID, params.ToAccountID, params.Limit, params.Offset).
+		WithArgs(account.UserID, params.Limit, params.Offset).
 		WillReturnRows(rows)
 
 	transfers, err := testQueries.ListTransfers(context.Background(), params)
