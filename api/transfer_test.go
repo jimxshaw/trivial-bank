@@ -10,7 +10,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	mw "github.com/jimxshaw/trivial-bank/authentication/middleware"
+	"github.com/jimxshaw/trivial-bank/authentication/token"
 	mockdb "github.com/jimxshaw/trivial-bank/db/mocks"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	"github.com/jimxshaw/trivial-bank/util"
@@ -92,6 +95,7 @@ func TestTransferAPI(t *testing.T) {
 		name          string
 		pageID        int32
 		pageSize      int32
+		setupAuth     func(t *testing.T, request *http.Request, tokenGenerator token.Generator)
 		stubs         func(m *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
@@ -99,6 +103,9 @@ func TestTransferAPI(t *testing.T) {
 			name:     "happy path",
 			pageID:   1,
 			pageSize: 5,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				params := db.ListTransfersParams{
 					Limit:  5,
@@ -168,6 +175,7 @@ func TestTransferAPI(t *testing.T) {
 			req, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
+			tc.setupAuth(t, req, s.tokenGenerator)
 			s.router.ServeHTTP(rec, req)
 
 			tc.checkResponse(t, rec)
@@ -178,16 +186,28 @@ func TestTransferAPI(t *testing.T) {
 	testCasesGetTransfer := []struct {
 		name          string
 		transferID    int64
+		setupAuth     func(t *testing.T, request *http.Request, tokenGenerator token.Generator)
 		stubs         func(m *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name:       "happy path",
 			transferID: transfer.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGet(m, transfer.ID).
 					Times(1).
 					Return(transfer, nil)
+
+				callGetAccount(m, transfer.FromAccountID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				callGetAccount(m, transfer.ToAccountID).
+					Times(1).
+					Return(toAccount, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -197,10 +217,19 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name:       "not found",
 			transferID: transfer.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGet(m, transfer.ID).
 					Times(1).
 					Return(db.Transfer{}, sql.ErrNoRows)
+
+				callGetAccount(m, transfer.FromAccountID).
+					Times(0)
+
+				callGetAccount(m, transfer.ToAccountID).
+					Times(0)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusNotFound, recorder.Code)
@@ -209,10 +238,19 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name:       "some error happened",
 			transferID: transfer.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGet(m, transfer.ID).
 					Times(1).
 					Return(db.Transfer{}, errors.New("some error"))
+
+				callGetAccount(m, transfer.FromAccountID).
+					Times(0)
+
+				callGetAccount(m, transfer.ToAccountID).
+					Times(0)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
@@ -221,8 +259,17 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name:       "invalid ID",
 			transferID: 0,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGet(m, 0).
+					Times(0)
+
+				callGetAccount(m, transfer.FromAccountID).
+					Times(0)
+
+				callGetAccount(m, transfer.ToAccountID).
 					Times(0)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
@@ -248,6 +295,7 @@ func TestTransferAPI(t *testing.T) {
 			req, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
+			tc.setupAuth(t, req, s.tokenGenerator)
 			s.router.ServeHTTP(rec, req)
 
 			tc.checkResponse(t, rec)

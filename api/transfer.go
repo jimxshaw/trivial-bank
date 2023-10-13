@@ -70,6 +70,27 @@ func (s *Server) getTransfer(ctx *gin.Context) {
 		return
 	}
 
+	fromAccount, err := s.store.GetAccount(ctx, transfer.FromAccountID)
+	if err != nil {
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
+		return
+	}
+
+	toAccount, err := s.store.GetAccount(ctx, transfer.ToAccountID)
+	if err != nil {
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
+		return
+	}
+
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
+	// Authorization Rule: users may get a transfer only if their account
+	// is involved as the sender or as the receiver of funds.
+	if fromAccount.UserID != authPayload.UserID && toAccount.UserID != authPayload.UserID {
+		errorResponse(tl.CodeUnauthorized, ctx.Writer)
+		return
+	}
+
 	tl.RespondWithJSON(ctx.Writer, http.StatusOK, transfer)
 }
 
