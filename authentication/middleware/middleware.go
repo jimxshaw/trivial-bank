@@ -1,59 +1,56 @@
 package middleware
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jimxshaw/trivial-bank/authentication/token"
 )
 
 type contextKey string
 
 const (
-	authHeaderKey  string     = "authorization"
-	authTypeBearer string     = "bearer"
-	authPayloadKey contextKey = "authorization_payload"
+	AuthHeaderKey  string     = "authorization"
+	AuthPayloadKey contextKey = "authorization_payload"
+	AuthTypeBearer string     = "bearer"
 )
 
-func AuthMiddleware(tokenGenerator token.Generator) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// The header should be in <auth type> <token value> format:
-			// E.g. Bearer abcdefg
-			authHeader := r.Header.Get(authHeaderKey)
-			if authHeader == "" {
-				http.Error(w, "authorization header is missing", http.StatusUnauthorized)
-				return
-			}
+// AuthGinMiddleware creates a gin middleware for authorization.
+func AuthGinMiddleware(tokenGenerator token.Generator) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		authHeader := ctx.GetHeader(AuthHeaderKey)
 
-			fields := strings.Fields(authHeader)
-			if len(fields) < 2 {
-				http.Error(w, "invalid authorization header format", http.StatusUnauthorized)
-				return
-			}
+		if len(authHeader) == 0 {
+			err := errors.New("authorization header is missing")
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err.Error())
+			return
+		}
 
-			authType := strings.ToLower(fields[0])
-			if authType != authTypeBearer {
-				http.Error(w, fmt.Sprintf("unsupported authorization type %s", authType), http.StatusUnauthorized)
-				return
-			}
+		fields := strings.Fields(authHeader)
+		if len(fields) < 2 {
+			err := errors.New("invalid authorization header format")
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err.Error())
+			return
+		}
 
-			accessToken := fields[1]
+		authType := strings.ToLower(fields[0])
+		if authType != AuthTypeBearer {
+			err := fmt.Errorf("unsupported authorization type %s", authType)
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err.Error())
+			return
+		}
 
-			payload, err := tokenGenerator.ValidateToken(accessToken)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
+		accessToken := fields[1]
+		payload, err := tokenGenerator.ValidateToken(accessToken)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err.Error())
+			return
+		}
 
-			// Store the payload in the request's context
-			ctx := context.WithValue(r.Context(), authPayloadKey, payload)
-			r = r.WithContext(ctx)
-
-			// Move to the next handler.
-			next.ServeHTTP(w, r)
-		})
+		ctx.Set(string(AuthPayloadKey), payload)
+		ctx.Next()
 	}
 }

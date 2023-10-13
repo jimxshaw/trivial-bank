@@ -52,31 +52,32 @@ func TestListAccounts(t *testing.T) {
 	query := `
 		SELECT id, user_id, balance, currency, created_at 
 		FROM accounts
+		WHERE user_id = $1
 		ORDER BY id
-		LIMIT $1
-		OFFSET $2
+		LIMIT $2
+		OFFSET $3
 	`
 
 	params := ListAccountsParams{
+		UserID: expectedAccounts[9].UserID,
 		Limit:  5,
-		Offset: 5,
+		Offset: 0,
 	}
 
 	rows := sqlmock.NewRows([]string{"id", "user_id", "balance", "currency", "created_at"})
-	for _, account := range expectedAccounts[5:10] {
-		rows.AddRow(account.ID, account.UserID, account.Balance, account.Currency, account.CreatedAt)
-	}
+	rows.AddRow(expectedAccounts[9].ID, expectedAccounts[9].UserID, expectedAccounts[9].Balance, expectedAccounts[9].Currency, expectedAccounts[9].CreatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(params.Limit, params.Offset).
+		WithArgs(params.UserID, params.Limit, params.Offset).
 		WillReturnRows(rows)
 
 	accounts, err := testQueries.ListAccounts(context.Background(), params)
 	require.NoError(t, err)
-	require.Len(t, accounts, 5)
+	require.NotEmpty(t, accounts)
 
 	for _, account := range accounts {
 		require.NotEmpty(t, account)
+		require.Equal(t, expectedAccounts[9].UserID, account.UserID)
 	}
 }
 

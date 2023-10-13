@@ -1,11 +1,15 @@
 package api
 
 import (
+	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	mw "github.com/jimxshaw/trivial-bank/authentication/middleware"
+	"github.com/jimxshaw/trivial-bank/authentication/token"
 	mockdb "github.com/jimxshaw/trivial-bank/db/mocks"
 	"github.com/jimxshaw/trivial-bank/util"
 	"github.com/stretchr/testify/require"
@@ -44,4 +48,19 @@ func newConfigMock() util.Config {
 		TokenSymmetricKey:   util.RandomString(32),
 		AccessTokenDuration: time.Minute,
 	}
+}
+
+func addAuthorizationToTest(
+	t *testing.T,
+	request *http.Request,
+	tokenGenerator token.Generator,
+	authorizationType string,
+	userID int64,
+	duration time.Duration,
+) {
+	token, err := tokenGenerator.GenerateToken(userID, duration)
+	require.NoError(t, err)
+
+	authHeader := fmt.Sprintf("%s %s", authorizationType, token)
+	request.Header.Set(mw.AuthHeaderKey, authHeader)
 }

@@ -68,7 +68,7 @@ func (s *Server) setupRouter() {
 
 	// Authentication routes.
 	authRoutes := r.Group("/")
-	authRoutes.Use(mw.GinAdapter(auth.AuthMiddleware(s.tokenGenerator)))
+	authRoutes.Use(auth.AuthGinMiddleware(s.tokenGenerator))
 
 	// Health check
 	authRoutes.GET("/health", s.healthCheck)

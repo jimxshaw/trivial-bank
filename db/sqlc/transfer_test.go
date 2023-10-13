@@ -43,37 +43,59 @@ func TestGetTransfer(t *testing.T) {
 }
 
 func TestListTransfers(t *testing.T) {
-	var expectedTransfers []Transfer
-	for i := 0; i < 10; i++ {
-		transfer := createRandomTransfer(t)
-		expectedTransfers = append(expectedTransfers, transfer)
+	expectedTransfers := []Transfer{
+		{
+			ID:            1,
+			FromAccountID: 1,
+			ToAccountID:   2,
+			Amount:        500,
+			CreatedAt:     time.Now(),
+		},
+		{
+			ID:            2,
+			FromAccountID: 2,
+			ToAccountID:   1,
+			Amount:        1000,
+			CreatedAt:     time.Now(),
+		},
+	}
+
+	account := Account{
+		ID:        1,
+		UserID:    1,
+		Balance:   10000,
+		Currency:  "USD",
+		CreatedAt: time.Now(),
 	}
 
 	query := `
-		SELECT id, from_account_id, to_account_id, amount, created_at 
-		FROM transfers
-		ORDER BY id
-		LIMIT $1
-		OFFSET $2
+		SELECT t.id, t.from_account_id, t.to_account_id, t.amount, t.created_at 
+		FROM transfers AS t
+		JOIN accounts AS a1 ON t.from_account_id = a1.id
+		JOIN accounts AS a2 ON t.to_account_id = a2.id
+		WHERE (a1.user_id = $1 OR a2.user_id = $1)
+		LIMIT $2 
+		OFFSET $3
 	`
 
 	params := ListTransfersParams{
+		UserID: account.UserID,
 		Limit:  5,
-		Offset: 5,
+		Offset: 0,
 	}
 
 	rows := sqlmock.NewRows([]string{"id", "from_account_id", "to_account_id", "amount", "created_at"})
-	for _, transfer := range expectedTransfers[5:10] {
+	for _, transfer := range expectedTransfers {
 		rows.AddRow(transfer.ID, transfer.FromAccountID, transfer.ToAccountID, transfer.Amount, transfer.CreatedAt)
 	}
 
 	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WithArgs(params.Limit, params.Offset).
+		WithArgs(account.UserID, params.Limit, params.Offset).
 		WillReturnRows(rows)
 
 	transfers, err := testQueries.ListTransfers(context.Background(), params)
 	require.NoError(t, err)
-	require.Len(t, transfers, 5)
+	require.Len(t, transfers, 2)
 
 	for _, transfer := range transfers {
 		require.NotEmpty(t, transfer)

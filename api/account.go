@@ -2,11 +2,14 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	tl "github.com/jimxshaw/tracerlogger"
+	auth "github.com/jimxshaw/trivial-bank/authentication/middleware"
+	"github.com/jimxshaw/trivial-bank/authentication/token"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	"github.com/lib/pq"
 )
@@ -24,7 +27,6 @@ type getAccountRequest struct {
 
 type createAccountRequest struct {
 	// https://pkg.go.dev/github.com/go-playground/validator/v10
-	UserID int64 `json:"user_id" binding:"required"`
 	// Custom validation called currency registered in server.go.
 	Currency string `json:"currency" binding:"required,currency"`
 }
@@ -46,7 +48,11 @@ func (s *Server) listAccounts(ctx *gin.Context) {
 		return
 	}
 
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
 	params := db.ListAccountsParams{
+		// Authorization Rule: users may only retrieve their own list of accounts.
+		UserID: authPayload.UserID,
 		Limit:  req.PageSize,
 		Offset: (req.PageID - 1) * req.PageSize,
 	}
@@ -79,6 +85,15 @@ func (s *Server) getAccount(ctx *gin.Context) {
 		return
 	}
 
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
+	// Authorization Rule: users may only retrieve their own account.
+	if account.UserID != authPayload.UserID {
+		err := errors.New("account does not belong to the authenticated user")
+		tl.RespondWithError(ctx.Writer, http.StatusUnauthorized, err)
+		return
+	}
+
 	tl.RespondWithJSON(ctx.Writer, http.StatusOK, account)
 }
 
@@ -90,8 +105,14 @@ func (s *Server) createAccount(ctx *gin.Context) {
 		return
 	}
 
+	// Retrieve the "payload" stored in the context by a certain key.
+	// Then use type assertion to assert that the value is
+	// a pointer to our defined Payload struct.
+	authPayload := ctx.MustGet(string(auth.AuthPayloadKey)).(*token.Payload)
+
 	params := db.CreateAccountParams{
-		UserID:   req.UserID,
+		// Authorization Rule: users may only create accounts for themselves.
+		UserID:   authPayload.UserID,
 		Currency: req.Currency,
 		Balance:  0,
 	}

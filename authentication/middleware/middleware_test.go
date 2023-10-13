@@ -2,124 +2,126 @@ package middleware
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gin-gonic/gin"
 	"github.com/jimxshaw/trivial-bank/authentication/token"
-	"github.com/jimxshaw/trivial-bank/util"
 	"github.com/stretchr/testify/require"
 )
 
-type mockTokenGenerator struct {
-	valid       bool
-	payload     *token.Payload
-	generateErr error
-	validateErr error
+// MockTokenGenerator is a mock implementation of the Generator interface
+type MockTokenGenerator struct {
+	generatedToken  string
+	validatePayload *token.Payload
+	validateError   error
 }
 
-func (m *mockTokenGenerator) GenerateToken(userID int64, duration time.Duration) (string, error) {
-	if m.generateErr != nil {
-		return "", m.generateErr
-	}
-	return "mock-token", nil
+func NewMockTokenGenerator() *MockTokenGenerator {
+	return &MockTokenGenerator{}
 }
 
-func (m *mockTokenGenerator) ValidateToken(token string) (*token.Payload, error) {
-	if m.validateErr != nil {
-		return nil, m.validateErr
-	}
-	if m.valid {
-		return m.payload, nil
-	}
-	return nil, errors.New("invalid token")
+// WithGeneratedToken allows you to set the mock's return value for GenerateToken
+func (m *MockTokenGenerator) WithGeneratedToken(token string) *MockTokenGenerator {
+	m.generatedToken = token
+	return m
 }
 
-func TestAuthMiddleware(t *testing.T) {
-	payload := &token.Payload{
-		ID:        uuid.New(),
-		UserID:    util.RandomInt(1, 1000),
-		IssuedAt:  time.Now(),
-		ExpiredAt: time.Now().Add(time.Minute),
-	}
+// WithValidatedPayload allows you to set the mock's return value for ValidateToken
+func (m *MockTokenGenerator) WithValidatedPayload(payload *token.Payload) *MockTokenGenerator {
+	m.validatePayload = payload
+	return m
+}
 
-	testCasesAuthMiddleware := []struct {
-		name           string
-		givenToken     string
-		givenAuthType  string
-		tokenGenerator token.Generator
-		expectedStatus int
-		expectedBody   string
+// WithValidateError allows you to set the mock's error return for ValidateToken
+func (m *MockTokenGenerator) WithValidateError() *MockTokenGenerator {
+	m.validateError = errors.New("mocked validate token error")
+	return m
+}
+
+func (m *MockTokenGenerator) GenerateToken(userID int64, duration time.Duration) (string, error) {
+	return m.generatedToken, nil
+}
+
+func (m *MockTokenGenerator) ValidateToken(token string) (*token.Payload, error) {
+	if m.validateError != nil {
+		return nil, m.validateError
+	}
+	return m.validatePayload, nil
+}
+
+func TestAuthGinMiddleware(t *testing.T) {
+	validPayload := &token.Payload{UserID: 123}
+
+	testCasesAuthGinMiddleware := []struct {
+		name               string
+		authHeader         string
+		mockTokenGenerator *MockTokenGenerator
+		expectedStatusCode int
+		expectedResponse   string
 	}{
 		{
-			name:           "happy path",
-			givenToken:     "valid-token",
-			givenAuthType:  authTypeBearer,
-			tokenGenerator: &mockTokenGenerator{valid: true, payload: payload},
-			expectedStatus: http.StatusOK,
-			expectedBody:   "next-handler-response",
+			name:               "no authorization header",
+			authHeader:         "",
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedResponse:   "authorization header is missing",
 		},
 		{
-			name:           "missing authorization header",
-			givenToken:     "",
-			givenAuthType:  "",
-			tokenGenerator: &mockTokenGenerator{valid: true},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "authorization header is missing\n",
+			name:               "invalid authorization header format",
+			authHeader:         "Bearer",
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedResponse:   "invalid authorization header format",
 		},
 		{
-			name:           "invalid header format",
-			givenToken:     "only-token",
-			givenAuthType:  "",
-			tokenGenerator: &mockTokenGenerator{valid: true},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "invalid authorization header format\n",
+			name:               "unsupported authorization type",
+			authHeader:         "Unsupported abcdefg",
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedResponse:   "unsupported authorization type unsupported",
 		},
 		{
-			name:           "unsupported authorization type",
-			givenToken:     "token",
-			givenAuthType:  "custom",
-			tokenGenerator: &mockTokenGenerator{valid: true},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "unsupported authorization type custom\n",
+			name:               "valid token",
+			authHeader:         "Bearer validtoken",
+			mockTokenGenerator: NewMockTokenGenerator().WithGeneratedToken("validtoken").WithValidatedPayload(validPayload),
+			expectedStatusCode: http.StatusOK,
 		},
 		{
-			name:           "invalid token",
-			givenToken:     "invalid-token",
-			givenAuthType:  authTypeBearer,
-			tokenGenerator: &mockTokenGenerator{valid: false},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "invalid token\n",
+			name:               "invalid token",
+			authHeader:         "Bearer invalidtoken",
+			mockTokenGenerator: NewMockTokenGenerator().WithValidateError(),
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedResponse:   "mocked validate token error",
 		},
 	}
 
-	for i := range testCasesAuthMiddleware {
-		tc := testCasesAuthMiddleware[i]
+	for i := range testCasesAuthGinMiddleware {
+		tc := testCasesAuthGinMiddleware[i]
 
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := http.NewRequest("GET", "/auth", nil)
-			require.NoError(t, err)
+			r := gin.Default()
 
-			if tc.givenToken != "" || tc.givenAuthType != "" {
-				req.Header.Add(authHeaderKey, fmt.Sprintf("%s %s", tc.givenAuthType, tc.givenToken))
-			}
+			r.Use(AuthGinMiddleware(tc.mockTokenGenerator))
 
-			rec := httptest.NewRecorder()
-
-			mw := AuthMiddleware(tc.tokenGenerator)
-
-			// A "next" handler is needed to check if the request successfully passed the middleware.
-			nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, "next-handler-response")
+			r.GET("/test", func(ctx *gin.Context) {
+				payload, _ := ctx.Get(string(AuthPayloadKey))
+				if payload != nil {
+					ctx.String(http.StatusOK, "OK")
+				}
 			})
 
-			mw(nextHandler).ServeHTTP(rec, req)
+			req, err := http.NewRequest(http.MethodGet, "/test", nil)
+			require.NoError(t, err)
+			req.Header.Set(AuthHeaderKey, tc.authHeader)
 
-			require.Equal(t, tc.expectedStatus, rec.Code)
-			require.Equal(t, tc.expectedBody, rec.Body.String())
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+
+			require.Equal(t, tc.expectedStatusCode, res.Code)
+
+			if tc.expectedResponse != "" {
+				require.Contains(t, res.Body.String(), tc.expectedResponse)
+			}
 		})
 	}
 }
