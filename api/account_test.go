@@ -80,10 +80,7 @@ func TestAccountAPI(t *testing.T) {
 			query.Add("page_size", "5")
 			req.URL.RawQuery = query.Encode()
 
-			token, err := s.tokenGenerator.GenerateToken(params.UserID, time.Minute)
-			require.NoError(t, err)
-			req.Header.Set("Authorization", "Bearer "+token)
-
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusOK, rec.Code)
@@ -108,10 +105,7 @@ func TestAccountAPI(t *testing.T) {
 			query.Add("page_size", "5")
 			req.URL.RawQuery = query.Encode()
 
-			token, err := s.tokenGenerator.GenerateToken(params.UserID, time.Minute)
-			require.NoError(t, err)
-			req.Header.Set("Authorization", "Bearer "+token)
-
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusInternalServerError, rec.Code)
@@ -133,6 +127,7 @@ func TestAccountAPI(t *testing.T) {
 			req, err := http.NewRequest(method, "/accounts?page_id=0&page_size=0", nil)
 			require.NoError(t, err)
 
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -158,7 +153,7 @@ func TestAccountAPI(t *testing.T) {
 			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusOK, rec.Code)
@@ -179,7 +174,7 @@ func TestAccountAPI(t *testing.T) {
 			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusInternalServerError, rec.Code)
@@ -201,7 +196,7 @@ func TestAccountAPI(t *testing.T) {
 			req, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
 			require.NoError(t, err)
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -221,7 +216,7 @@ func TestAccountAPI(t *testing.T) {
 			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusNotFound, rec.Code)
@@ -233,10 +228,10 @@ func TestAccountAPI(t *testing.T) {
 		url := "/accounts"
 		method := http.MethodPost
 
-		jsonStr := []byte(`{"user_id":1,"currency":"USD"}`)
+		jsonStr := []byte(fmt.Sprintf(`{"user_id":%d,"currency":"USD"}`, account.UserID))
 
 		params := db.CreateAccountParams{
-			UserID:   1,
+			UserID:   account.UserID,
 			Balance:  0,
 			Currency: "USD",
 		}
@@ -247,7 +242,7 @@ func TestAccountAPI(t *testing.T) {
 
 			newAccount := db.Account{
 				Balance:  0,
-				UserID:   1,
+				UserID:   account.UserID,
 				Currency: "USD",
 			}
 
@@ -263,7 +258,7 @@ func TestAccountAPI(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusOK, rec.Code)
@@ -286,7 +281,7 @@ func TestAccountAPI(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusInternalServerError, rec.Code)
@@ -308,7 +303,7 @@ func TestAccountAPI(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -352,7 +347,7 @@ func TestAccountAPI(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusOK, rec.Code)
@@ -375,7 +370,7 @@ func TestAccountAPI(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusInternalServerError, rec.Code)
@@ -397,7 +392,7 @@ func TestAccountAPI(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -418,7 +413,7 @@ func TestAccountAPI(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -444,7 +439,7 @@ func TestAccountAPI(t *testing.T) {
 			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusOK, rec.Code)
@@ -464,7 +459,7 @@ func TestAccountAPI(t *testing.T) {
 			req, err := http.NewRequest(method, url, nil)
 			require.NoError(t, err)
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusInternalServerError, rec.Code)
@@ -485,7 +480,7 @@ func TestAccountAPI(t *testing.T) {
 			req, err := http.NewRequest(method, fmt.Sprintf("/accounts/%d", invalidID), nil)
 			require.NoError(t, err)
 
-			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthHeaderKey, account.UserID, time.Minute)
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusBadRequest, rec.Code)

@@ -15,7 +15,7 @@ type contextKey string
 const (
 	AuthHeaderKey  string     = "authorization"
 	AuthPayloadKey contextKey = "authorization_payload"
-	authTypeBearer string     = "bearer"
+	AuthTypeBearer string     = "bearer"
 )
 
 // AuthGinMiddleware creates a gin middleware for authorization.
@@ -37,7 +37,7 @@ func AuthGinMiddleware(tokenGenerator token.Generator) gin.HandlerFunc {
 		}
 
 		authType := strings.ToLower(fields[0])
-		if authType != authTypeBearer {
+		if authType != AuthTypeBearer {
 			err := fmt.Errorf("unsupported authorization type %s", authType)
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err.Error())
 			return
