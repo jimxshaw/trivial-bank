@@ -16,6 +16,7 @@ import (
 	mockdb "github.com/jimxshaw/trivial-bank/db/mocks"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	"github.com/jimxshaw/trivial-bank/util"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -84,6 +85,29 @@ func TestAccountAPI(t *testing.T) {
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusOK, rec.Code)
+		})
+
+		t.Run("no authorization", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callList(m, params).
+				Times(0)
+
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
+
+			req, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			query := req.URL.Query()
+			query.Add("page_id", "1")
+			query.Add("page_size", "5")
+			req.URL.RawQuery = query.Encode()
+
+			s.router.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -158,6 +182,52 @@ func TestAccountAPI(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			requireBodyMatchAccount(t, rec.Body, account)
+		})
+
+		t.Run("no authorization", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callGet(m, account.ID).
+				Times(0)
+
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
+
+			req, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			s.router.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
+		})
+
+		t.Run("unauthorized user", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			otherUserID := util.RandomInt(5000, 10000)
+			otherAccount := db.Account{
+				ID:       account.ID,
+				UserID:   otherUserID, // Different user than the auth token.
+				Balance:  2000,
+				Currency: "USD",
+			}
+
+			callGet(m, otherAccount.ID).
+				Times(1).
+				Return(otherAccount, nil)
+
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
+
+			req, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
+			s.router.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -265,6 +335,90 @@ func TestAccountAPI(t *testing.T) {
 			requireBodyMatchAccount(t, rec.Body, newAccount)
 		})
 
+		t.Run("no authorization", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callCreate(m, params).
+				Times(0)
+
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
+
+			req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			require.NoError(t, err)
+
+			req.Header.Set("Content-Type", "application/json")
+
+			s.router.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
+		})
+
+		t.Run("foreign key violation", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			params := db.CreateAccountParams{
+				UserID:   account.UserID,
+				Currency: "USD",
+				Balance:  0,
+			}
+
+			dbErr := &pq.Error{
+				Code: "23503", // Error code for "foreign_key_violation" in PostgreSQL.
+			}
+
+			callCreate(m, params).
+				Times(1).
+				Return(db.Account{}, dbErr)
+
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
+
+			req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			require.NoError(t, err)
+
+			req.Header.Set("Content-Type", "application/json")
+
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
+			s.router.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusForbidden, rec.Code)
+		})
+
+		t.Run("unique violation", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			params := db.CreateAccountParams{
+				UserID:   account.UserID,
+				Currency: "USD",
+				Balance:  0,
+			}
+
+			dbErr := &pq.Error{
+				Code: "23505", // Error code for "unique_violation" in PostgreSQL.
+			}
+
+			callCreate(m, params).
+				Times(1).
+				Return(db.Account{}, dbErr)
+
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
+
+			req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			require.NoError(t, err)
+
+			req.Header.Set("Content-Type", "application/json")
+
+			addAuthorizationToTest(t, req, s.tokenGenerator, mw.AuthTypeBearer, account.UserID, time.Minute)
+			s.router.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusForbidden, rec.Code)
+		})
+
 		t.Run("some error happened", func(t *testing.T) {
 			finish, m := newStoreMock(t)
 			defer finish()
@@ -352,6 +506,26 @@ func TestAccountAPI(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			requireBodyMatchAccount(t, rec.Body, accountToUpdate)
+		})
+
+		t.Run("no authorization", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callUpdate(m, params).
+				Times(0)
+
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
+
+			req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonStr))
+			require.NoError(t, err)
+
+			req.Header.Set("Content-Type", "application/json")
+
+			s.router.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
@@ -443,6 +617,24 @@ func TestAccountAPI(t *testing.T) {
 			s.router.ServeHTTP(rec, req)
 
 			require.Equal(t, http.StatusOK, rec.Code)
+		})
+
+		t.Run("no authorization", func(t *testing.T) {
+			finish, m := newStoreMock(t)
+			defer finish()
+
+			callDelete(m, account.ID).
+				Times(0)
+
+			s := newServerMock(t, m)
+			rec := httptest.NewRecorder()
+
+			req, err := http.NewRequest(method, url, nil)
+			require.NoError(t, err)
+
+			s.router.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
 		})
 
 		t.Run("some error happened", func(t *testing.T) {
