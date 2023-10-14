@@ -283,7 +283,7 @@ func TestTransferAPI(t *testing.T) {
 			name:       "unauthorized user",
 			transferID: transfer.ID,
 			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
-				unauthorizedUserID := fromAccount.UserID + 111111 // userID that's not the sender or receiver
+				unauthorizedUserID := fromAccount.UserID + 111111 // userID that's not the sender or receiver.
 				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, unauthorizedUserID, time.Minute)
 			},
 			stubs: func(m *mockdb.MockStore) {
@@ -421,6 +421,28 @@ func TestTransferAPI(t *testing.T) {
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatch(t, recorder.Body, transferTxResult)
+			},
+		},
+		{
+			name: "unauthorized user",
+			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				unauthorizedUserID := fromAccount.UserID + 111111 // userID that's not the sender.
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, unauthorizedUserID, time.Minute)
+			},
+			stubs: func(m *mockdb.MockStore) {
+				callGetAccount(m, fromAccount.ID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				callGetAccount(m, toAccount.ID).
+					Times(0)
+
+				callCreate(m, transferTxParams).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
 			},
 		},
 		{
