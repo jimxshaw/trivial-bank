@@ -30,14 +30,12 @@ func TestTransferAPI(t *testing.T) {
 			FromAccountID: 1,
 			ToAccountID:   2,
 			Amount:        100,
-			CreatedAt:     time.Now(),
 		},
 		{
 			ID:            2,
 			FromAccountID: 2,
 			ToAccountID:   1,
 			Amount:        200,
-			CreatedAt:     time.Now(),
 		},
 	}
 
@@ -120,6 +118,7 @@ func TestTransferAPI(t *testing.T) {
 			},
 			stubs: func(m *mockdb.MockStore) {
 				params := db.ListTransfersParams{
+					UserID: fromAccount.UserID,
 					Limit:  5,
 					Offset: 0,
 				}
@@ -139,6 +138,7 @@ func TestTransferAPI(t *testing.T) {
 			pageSize: 5,
 			stubs: func(m *mockdb.MockStore) {
 				params := db.ListTransfersParams{
+					UserID: fromAccount.UserID,
 					Limit:  5,
 					Offset: 0,
 				}
@@ -157,6 +157,7 @@ func TestTransferAPI(t *testing.T) {
 			pageSize: 0,
 			stubs: func(m *mockdb.MockStore) {
 				params := db.ListTransfersParams{
+					UserID: fromAccount.UserID,
 					Limit:  0,
 					Offset: 0,
 				}
