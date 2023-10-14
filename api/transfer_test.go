@@ -234,6 +234,52 @@ func TestTransferAPI(t *testing.T) {
 			},
 		},
 		{
+			name:       "error getting fromAccount",
+			transferID: transfer.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, transfer.ID).
+					Times(1).
+					Return(transfer, nil)
+
+				callGetAccount(m, transfer.FromAccountID).
+					Times(1).
+					Return(db.Account{}, errors.New("some error"))
+
+				callGetAccount(m, transfer.ToAccountID).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+		{
+			name:       "error getting toAccount",
+			transferID: transfer.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
+			stubs: func(m *mockdb.MockStore) {
+				callGet(m, transfer.ID).
+					Times(1).
+					Return(transfer, nil)
+
+				callGetAccount(m, transfer.FromAccountID).
+					Times(1).
+					Return(fromAccount, nil)
+
+				callGetAccount(m, transfer.ToAccountID).
+					Times(1).
+					Return(db.Account{}, errors.New("some error"))
+
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+		{
 			name:       "not found",
 			transferID: transfer.ID,
 			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
