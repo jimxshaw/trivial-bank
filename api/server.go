@@ -62,16 +62,22 @@ func (s *Server) setupRouter() {
 	// Tracer will be applied to all routes.
 	r.Use(mw.GinAdapter(tracer.TraceMiddleware()))
 
-	// Non-authentication routes.
+	/* Non-Authentication */
+	// Users
 	r.POST("/users", s.createUser)
 	r.POST("/users/login", s.loginUser)
 
-	// Authentication routes.
+	// Health check
+	r.GET("/health", s.healthCheck)
+
+	// TODO: Entries routes require authorization
+	// roles to be implemented.
+	r.GET("/entries", s.listEntries)
+	r.GET("/entries/:id", s.getEntry)
+
+	/* Authentication */
 	authRoutes := r.Group("/")
 	authRoutes.Use(auth.AuthGinMiddleware(s.tokenGenerator))
-
-	// Health check
-	authRoutes.GET("/health", s.healthCheck)
 
 	// Accounts
 	authRoutes.GET("/accounts", s.listAccounts)
@@ -79,10 +85,6 @@ func (s *Server) setupRouter() {
 	authRoutes.POST("/accounts", s.createAccount)
 	authRoutes.PUT("/accounts/:id", s.updateAccount)
 	authRoutes.DELETE("/accounts/:id", s.deleteAccount)
-
-	// Entries
-	authRoutes.GET("/entries", s.listEntries)
-	authRoutes.GET("/entries/:id", s.getEntry)
 
 	// Transfers
 	authRoutes.GET("/transfers", s.listTransfers)
