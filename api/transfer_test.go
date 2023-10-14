@@ -30,14 +30,12 @@ func TestTransferAPI(t *testing.T) {
 			FromAccountID: 1,
 			ToAccountID:   2,
 			Amount:        100,
-			CreatedAt:     time.Now(),
 		},
 		{
 			ID:            2,
 			FromAccountID: 2,
 			ToAccountID:   1,
 			Amount:        200,
-			CreatedAt:     time.Now(),
 		},
 	}
 
@@ -120,6 +118,7 @@ func TestTransferAPI(t *testing.T) {
 			},
 			stubs: func(m *mockdb.MockStore) {
 				params := db.ListTransfersParams{
+					UserID: fromAccount.UserID,
 					Limit:  5,
 					Offset: 0,
 				}
@@ -137,8 +136,12 @@ func TestTransferAPI(t *testing.T) {
 			name:     "some error happened",
 			pageID:   1,
 			pageSize: 5,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				params := db.ListTransfersParams{
+					UserID: fromAccount.UserID,
 					Limit:  5,
 					Offset: 0,
 				}
@@ -155,8 +158,12 @@ func TestTransferAPI(t *testing.T) {
 			name:     "invalid query parameters",
 			pageID:   0,
 			pageSize: 0,
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				params := db.ListTransfersParams{
+					UserID: fromAccount.UserID,
 					Limit:  0,
 					Offset: 0,
 				}
@@ -318,12 +325,16 @@ func TestTransferAPI(t *testing.T) {
 	testCasesCreateTransfer := []struct {
 		name          string
 		body          []byte
+		setupAuth     func(t *testing.T, req *http.Request, tokenGenerator token.Generator)
 		stubs         func(m *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name: "happy path",
 			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGetAccount(m, fromAccount.ID).
 					Times(1).
@@ -345,6 +356,9 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name: "some error happened",
 			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGetAccount(m, fromAccount.ID).
 					Times(1).
@@ -365,6 +379,9 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name: "invalid body",
 			body: []byte(`{"amount":250}`),
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGetAccount(m, fromAccount.ID).
 					Times(0)
@@ -382,6 +399,9 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name: "fromAccount ID does not exist",
 			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGetAccount(m, fromAccount.ID).
 					Times(1).
@@ -394,6 +414,9 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name: "fromAccount ID currency mismatch",
 			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"EUR"}`), // Euro
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGetAccount(m, fromAccount.ID).
 					Times(1).
@@ -406,6 +429,9 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name: "toAccount ID does not exist",
 			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGetAccount(m, fromAccount.ID).
 					Times(1).
@@ -422,6 +448,9 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name: "toAccount ID currency mismatch",
 			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGetAccount(m, fromAccount.ID).
 					Times(1).
@@ -440,6 +469,9 @@ func TestTransferAPI(t *testing.T) {
 		{
 			name: "error during get account",
 			body: []byte(`{"from_account_id":1,"to_account_id":2,"amount":250,"currency":"USD"}`),
+			setupAuth: func(t *testing.T, req *http.Request, tokenGenerator token.Generator) {
+				addAuthorizationToTest(t, req, tokenGenerator, mw.AuthTypeBearer, fromAccount.UserID, time.Minute)
+			},
 			stubs: func(m *mockdb.MockStore) {
 				callGetAccount(m, fromAccount.ID).
 					Times(1).
@@ -467,6 +499,7 @@ func TestTransferAPI(t *testing.T) {
 			req, err := http.NewRequest(http.MethodPost, "/transfers", bytes.NewBuffer(tc.body))
 			require.NoError(t, err)
 
+			tc.setupAuth(t, req, s.tokenGenerator)
 			s.router.ServeHTTP(rec, req)
 
 			tc.checkResponse(t, rec)
