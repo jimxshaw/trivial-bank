@@ -8,6 +8,7 @@ RUN go build -o main main.go
 FROM alpine:3.18
 WORKDIR /app
 COPY --from=builder /app/main .
+COPY app.env .
 
 # Port should match the value in app.env
 EXPOSE 8080
