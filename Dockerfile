@@ -13,6 +13,7 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/migrate ./migrate
 COPY app.env .
 COPY start.sh .
+COPY wait-for.sh .
 COPY db/migration ./migration
 
 # Port should match the value in app.env
