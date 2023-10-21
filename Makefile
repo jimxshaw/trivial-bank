@@ -14,8 +14,9 @@ network:
 migrate:
 	migrate create -ext sql -dir db/migration -seq $(NAME)
 
+# "postgresql://root:<AWS DB PASSWORD HERE>@<AWS HOST HERE>:5432/trivial_bank" 
 migrateup:
-	migrate -path db/migration -database "postgresql://root:<AWS DB PASSWORD HERE>@<AWS HOST HERE>:5432/trivial_bank" -verbose up 1
+	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose up 1
 
 migrateupall:
 	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose up
