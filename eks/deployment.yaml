@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trivial-bank-api-deployment
+  labels:
+    app: trivial-bank-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trivial-bank-api
+  template:
+    metadata:
+      labels:
+        app: trivial-bank-api
+    spec:
+      containers:
+        - name: trivial-bank-api
+          image: <AWS ACCOUNT ID>.dkr.ecr.us-east-2.amazonaws.com/trivialbank:latest
+          ports:
+            - containerPort: 8080
