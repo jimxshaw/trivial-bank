@@ -3,12 +3,13 @@ name: Deploy to production
 on:
   push:
     branches:
-      - main
+      # - main
+      - unused-branch
 
 jobs:
 
   deploy:
-    name: Build image
+    name: Build image and deploy
     runs-on: ubuntu-latest
 
     steps:
