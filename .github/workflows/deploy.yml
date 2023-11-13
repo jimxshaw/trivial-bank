@@ -45,6 +45,11 @@ jobs:
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t latest .
           docker push -a $REGISTRY/$REPOSITORY
 
+      - name: Replace placeholders in Kubernetes manifests
+        run: |
+          sed -i 's/ACCOUNT_ID_PLACEHOLDER/${{ secrets.AWS_ACCOUNT_ID }}/g' eks/aws-auth.yaml
+          sed -i 's/ACCOUNT_ID_PLACEHOLDER/${{ secrets.AWS_ACCOUNT_ID }}/g' eks/deployment.yaml
+
       - name: Deploy image to AWS EKS
         run: | 
           kubectl apply -f eks/aws-auth.yaml

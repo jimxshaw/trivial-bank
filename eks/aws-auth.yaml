@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 data:
   mapUsers: |
-    - userarn: arn:aws:iam::<AWS ACCOUNT ID>:user/github-ci
+    - userarn: arn:aws:iam::AWS_ACCOUNT_ID_PLACEHOLDER:user/github-ci
       username: github-ci
       groups:
         - system:masters
