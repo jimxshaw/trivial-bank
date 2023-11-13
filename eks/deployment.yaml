@@ -16,6 +16,7 @@ spec:
     spec:
       containers:
         - name: trivial-bank-api
-          image: <AWS account ID>.dkr.ecr.us-east-2.amazonaws.com/trivialbank:<image ID>
+          image: AWS_ACCOUNT_ID_PLACEHOLDER.dkr.ecr.us-east-2.amazonaws.com/trivialbank:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
