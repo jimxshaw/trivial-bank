@@ -57,8 +57,8 @@ jobs:
 
       - name: Replace placeholders in Kubernetes manifests
         run: |
-          sed -i 's/ACCOUNT_ID_PLACEHOLDER/${{ secrets.AWS_ACCOUNT_ID }}/g' eks/aws-auth.yaml
-          sed -i 's/ACCOUNT_ID_PLACEHOLDER/${{ secrets.AWS_ACCOUNT_ID }}/g' eks/deployment.yaml
+          sed -i 's/AWS_ACCOUNT_ID_PLACEHOLDER/${{ secrets.AWS_ACCOUNT_ID }}/g' eks/aws-auth.yaml
+          sed -i 's/AWS_ACCOUNT_ID_PLACEHOLDER/${{ secrets.AWS_ACCOUNT_ID }}/g' eks/deployment.yaml
 
       - name: Deploy image to AWS EKS
         run: | 
