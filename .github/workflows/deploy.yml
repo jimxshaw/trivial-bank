@@ -3,8 +3,7 @@ name: Deploy to production
 on:
   push:
     branches:
-      # - main
-      - unused-branch
+      - main
 
 jobs:
 
@@ -45,13 +44,6 @@ jobs:
         run: |
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
           docker push -a $REGISTRY/$REPOSITORY
-
-      - name: Configure AWS credentials for EKS
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_EKS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_EKS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
 
       - name: Update kube config
         run: aws eks update-kubeconfig --name trivial-bank --region us-east-2
