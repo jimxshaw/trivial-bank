@@ -16,6 +16,43 @@ func TestCreateSession(t *testing.T) {
 	createRandomSession(t)
 }
 
+func TestGetSession(t *testing.T) {
+	session := createRandomSession(t)
+
+	t.Run("get session by ID", func(t *testing.T) {
+		query := `
+			SELECT id, user_id, refresh_token, user_agent, client_ip, is_blocked, expires_at, created_at 
+			FROM sessions
+			WHERE id = $1 LIMIT
+		`
+
+		rows := sqlmock.NewRows([]string{"id", "user_id", "refresh_token", "user_agent", "client_ip", "is_blocked", "expires_at", "created_at"}).
+			AddRow(session.ID, session.UserID, session.RefreshToken, session.UserAgent, session.ClientIp, session.IsBlocked, session.ExpiresAt, time.Now())
+
+		mock.ExpectQuery(regexp.QuoteMeta(query)).
+			WithArgs(session.ID).
+			WillReturnRows(rows)
+
+		sess, err := testQueries.GetSession(context.Background(), session.ID)
+		require.NoError(t, err)
+		require.NotEmpty(t, sess)
+
+		requireGetSession(t, session, sess)
+	})
+
+}
+
+func requireGetSession(t *testing.T, want Session, got Session) {
+	require.Equal(t, want.ID, got.ID)
+	require.Equal(t, want.UserID, got.UserID)
+	require.Equal(t, want.RefreshToken, got.RefreshToken)
+	require.Equal(t, want.UserAgent, got.UserAgent)
+	require.Equal(t, want.ClientIp, got.ClientIp)
+	require.Equal(t, want.IsBlocked, got.IsBlocked)
+	require.WithinDuration(t, want.ExpiresAt, got.ExpiresAt, time.Second)
+	require.WithinDuration(t, want.CreatedAt, got.CreatedAt, time.Second)
+}
+
 func createRandomSession(t *testing.T) Session {
 	params := CreateSessionParams{
 		ID:           uuid.New(),
