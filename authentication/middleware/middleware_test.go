@@ -41,8 +41,8 @@ func (m *MockTokenGenerator) WithValidateError() *MockTokenGenerator {
 	return m
 }
 
-func (m *MockTokenGenerator) GenerateToken(userID int64, duration time.Duration) (string, error) {
-	return m.generatedToken, nil
+func (m *MockTokenGenerator) GenerateToken(userID int64, duration time.Duration) (string, *token.Payload, error) {
+	return m.generatedToken, m.validatePayload, nil
 }
 
 func (m *MockTokenGenerator) ValidateToken(token string) (*token.Payload, error) {
