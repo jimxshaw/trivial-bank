@@ -58,8 +58,9 @@ func addAuthorizationToTest(
 	userID int64,
 	duration time.Duration,
 ) {
-	token, err := tokenGenerator.GenerateToken(userID, duration)
+	token, payload, err := tokenGenerator.GenerateToken(userID, duration)
 	require.NoError(t, err)
+	require.NotEmpty(t, payload)
 
 	authHeader := fmt.Sprintf("%s %s", authorizationType, token)
 	request.Header.Set(mw.AuthHeaderKey, authHeader)

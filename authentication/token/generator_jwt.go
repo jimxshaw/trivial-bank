@@ -26,15 +26,16 @@ func NewJWTGenerator(secretKey string) (Generator, error) {
 }
 
 // GenerateToken creates a new token for the specified user.
-func (g *JWTGenerator) GenerateToken(userID int64, duration time.Duration) (string, error) {
+func (g *JWTGenerator) GenerateToken(userID int64, duration time.Duration) (string, *Payload, error) {
 	payload, err := NewPayload(userID, duration)
 	if err != nil {
-		return "", err
+		return "", payload, err
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
+	jwt, err := token.SignedString([]byte(g.secretKey))
 
-	return token.SignedString([]byte(g.secretKey))
+	return jwt, payload, err
 }
 
 // ValidateToken validates if the token is proper.

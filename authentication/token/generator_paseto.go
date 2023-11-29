@@ -31,13 +31,15 @@ func NewPasetoGenerator(symmetricKey string) (Generator, error) {
 }
 
 // GenerateToken creates a new token for the specified user.
-func (g *PasetoGenerator) GenerateToken(userID int64, duration time.Duration) (string, error) {
+func (g *PasetoGenerator) GenerateToken(userID int64, duration time.Duration) (string, *Payload, error) {
 	payload, err := NewPayload(userID, duration)
 	if err != nil {
-		return "", err
+		return "", payload, err
 	}
 
-	return g.paseto.Encrypt(g.symmetricKey, payload, nil)
+	token, err := g.paseto.Encrypt(g.symmetricKey, payload, nil)
+
+	return token, payload, err
 }
 
 // ValidateToken validates if the token is proper.
