@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	tl "github.com/jimxshaw/tracerlogger"
 	db "github.com/jimxshaw/trivial-bank/db/sqlc"
 	"github.com/jimxshaw/trivial-bank/util"
@@ -100,6 +101,7 @@ type loginUserRequest struct {
 }
 
 type loginUserResponse struct {
+	SessionID             uuid.UUID    `json:"session_id"`
 	AccessToken           string       `json:"access_token"`
 	AccessTokenExpiresAt  time.Time    `json:"access_token_expires_at"`
 	RefreshToken          string       `json:"refresh_token"`
@@ -143,7 +145,7 @@ func (s *Server) loginUser(ctx *gin.Context) {
 		return
 	}
 
-	s.store.CreateSession(ctx, db.CreateSessionParams{
+	session, err := s.store.CreateSession(ctx, db.CreateSessionParams{
 		ID:           refreshPayload.ID,
 		UserID:       user.ID,
 		RefreshToken: refreshToken,
@@ -152,8 +154,12 @@ func (s *Server) loginUser(ctx *gin.Context) {
 		IsBlocked:    false,
 		ExpiresAt:    refreshPayload.ExpiredAt,
 	})
+	if err != nil {
+		errorResponse(tl.CodeInternalServerError, ctx.Writer)
+	}
 
 	res := loginUserResponse{
+		SessionID:             session.ID,
 		AccessToken:           accessToken,
 		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
 		RefreshToken:          refreshToken,
