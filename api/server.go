@@ -66,6 +66,7 @@ func (s *Server) setupRouter() {
 	// Users
 	r.POST("/users", s.createUser)
 	r.POST("/users/login", s.loginUser)
+	r.POST("/tokens/renew_access", s.renewAccessToken)
 
 	// Health check
 	r.GET("/health", s.healthCheck)
