@@ -1,3 +1,5 @@
+DB_URL=postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable
+
 postgres:
 	docker run --name postgres12 --network bank-network -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=password -d postgres:12-alpine
 
@@ -6,6 +8,14 @@ createdb:
 
 dropdb:
 	docker exec -it postgres12 dropdb trivial_bank
+
+# npm dbdocs package
+db_docs:
+	dbdocs build doc/db.dbml
+
+#npm dbml/cli pckage
+db_schema:
+	dbml2sql --postgres -o doc/schema.sql doc/db.dbml
 
 network:
 	docker network create bank-network
@@ -16,16 +26,16 @@ migrate:
 
 # "postgresql://root:<AWS DB PASSWORD HERE>@<AWS HOST HERE>:5432/trivial_bank" 
 migrateup:
-	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose up 1
+	migrate -path db/migration -database "$(DB_URL)" -verbose up 1
 
 migrateupall:
-	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose up
+	migrate -path db/migration -database "$(DB_URL)" -verbose up
 
 migratedown:
-	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose down 1
+	migrate -path db/migration -database "$(DB_URL)" -verbose down 1
 
 migratedownall:
-	migrate -path db/migration -database "postgresql://root:password@localhost:5432/trivial_bank?sslmode=disable" -verbose down
+	migrate -path db/migration -database "$(DB_URL)" -verbose down
 
 sqlc:
 	sqlc generate
@@ -44,6 +54,8 @@ mock:
 	postgres
 	createdb
 	dropdb
+	db_docs
+	db_schema
 	network
 	migrate
 	migrateup
