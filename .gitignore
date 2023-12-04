@@ -19,3 +19,6 @@
 
 # Go workspace file
 go.work
+
+# DBML auto-generated error log
+dbml-error.log
