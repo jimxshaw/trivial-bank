@@ -7,6 +7,14 @@ createdb:
 dropdb:
 	docker exec -it postgres12 dropdb trivial_bank
 
+# npm dbdocs package
+db_docs:
+	dbdocs build doc/db.dbml
+
+#npm dbml/cli pckage
+db_schema:
+	dbml2sql --postgres -o doc/schema.sql doc/db.dbml
+
 network:
 	docker network create bank-network
 
@@ -44,6 +52,8 @@ mock:
 	postgres
 	createdb
 	dropdb
+	db_docs
+	db_schema
 	network
 	migrate
 	migrateup
