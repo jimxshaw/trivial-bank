@@ -1,0 +1,68 @@
+Project trivial_bank {
+  database_type: 'PostgreSQL'
+  Note: '''
+    # Trvial Bank Database
+  '''
+}
+
+Table accounts as A {
+  id bigserial [pk]
+  user_id bigint [ref: > U.id, not null]
+  balance bigint [not null]
+  currency varchar [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    user_id
+    (user_id, currency) [unique] // A user can only ever have one account of the same currency.
+  }
+}
+
+Table users as U {
+  id bigserial [pk]
+  first_name varchar [not null]
+  last_name varchar [not null]
+  email varchar [unique, not null]
+  username varchar [unique, not null]
+  password varchar [not null, note: 'must be hashed password']
+  password_changed_at timestamptz [not null, default: '0001-01-01 00:00:00+00']
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table sessions {
+  id uuid [pk]
+  user_id bitserial [not null, ref: > U.id]
+  refresh_token varchar [not null]
+  user_agent varchar [not null]
+  client_ip varchar [not null]
+  is_blocked bool [not null, default: false]
+  expires_at timestamptz [not null]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+// Record changes to the account balance
+Table entries {
+  id bigserial [pk]
+  account_id bigint [ref: > A.id, not null]
+  amount bigint [not null, note: 'can be positive or negative'] // postive (in to acct) or negative (out of acct)
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    account_id
+  }
+}
+
+// Record transfers between two accounts
+Table transfers {
+  id bigserial [pk]
+  from_account_id bigint [ref: > A.id, not null]
+  to_account_id bigint [ref: > A.id, not null]
+  amount bigint [not null, note: 'must be positive']
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    from_account_id
+    to_account_id
+    (from_account_id, to_account_id) // composite index
+  }
+}
